@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
 
@@ -201,11 +202,20 @@ class _AHostelitePageState extends State<AHostelitePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+        statusBarColor: primary_color, // color of status bar
+        statusBarIconBrightness: Brightness.light, // icon color
+    ),
+    child: Scaffold(
       backgroundColor: Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: primary_color,
         elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: primary_color, // status bar color
+          statusBarIconBrightness: Brightness.light, // status bar icons color
+        ),
         title: Text(
           "Hostelites",
           style: GoogleFonts.poppins(
@@ -311,7 +321,7 @@ class _AHostelitePageState extends State<AHostelitePage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget detailRow(String title, String value) {

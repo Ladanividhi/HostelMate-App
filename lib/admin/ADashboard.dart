@@ -1,4 +1,5 @@
 import 'package:HostelMate/admin/AHostelites.dart';
+import 'package:HostelMate/admin/ARequests.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
@@ -73,6 +74,13 @@ class _ADashboardState extends State<ADashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => AHostelitePage()),
+                            );
+                          }
+                        else if(dashboardItems[index]['label'] == 'Requests')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => ARequestsPage()),
                             );
                           }
                       },
