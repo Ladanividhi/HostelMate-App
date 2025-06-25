@@ -1,0 +1,160 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:HostelMate/utils/Constants.dart';
+
+class HDashboard extends StatelessWidget {
+  final List<Map<String, dynamic>> dashboardItems = [
+    {"icon": Icons.people_alt_outlined, "label": "Hostelites"},
+    {"icon": Icons.receipt_long, "label": "Send Request"},
+    {"icon": Icons.report_problem_outlined, "label": "Draft Complaint"},
+    {"icon": Icons.message_outlined, "label": "Send Message"},
+    {"icon": Icons.woman, "label": "View Vacancies"},
+    {"icon": Icons.currency_rupee, "label": "Payment Status"},
+    {"icon": Icons.vpn_key_outlined, "label": "Generate Gatepass"},
+    {"icon": Icons.qr_code_scanner, "label": "Scanner"},
+    {"icon": Icons.feedback_outlined, "label": "Feedback"},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredItems = dashboardItems.sublist(0, 9);
+
+    return Scaffold(
+      backgroundColor: Color(0xFFF5F5F5),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Header
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+              decoration: BoxDecoration(
+                color: primary_color,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(32),
+                  bottomRight: Radius.circular(32),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Left part: Welcome + Name + Info
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Welcome to HostelMate",
+                        style: GoogleFonts.poppins(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        "Ladani Vidhi Avanish",
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        "Hostel ID: H123 | Room: 302 | Bed: B",
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Right part: Profile icon
+                  InkWell(
+                    onTap: () {
+                      print("Profile tapped");
+                    },
+                    child: CircleAvatar(
+                      backgroundColor: Colors.white,
+                      radius: 20,
+                      child: Icon(Icons.person, color: primary_color, size: 28),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 26),
+            // Dashboard grid
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.count(
+                  physics: NeverScrollableScrollPhysics(),
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 0.7,
+                  children: List.generate(filteredItems.length, (index) {
+                    return dashboardCard(
+                      icon: filteredItems[index]['icon'],
+                      label: filteredItems[index]['label'],
+                      onTap: () {
+                        print("${filteredItems[index]['label']} tapped");
+                      },
+                    );
+                  }),
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget dashboardCard({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 12,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: primary_color,
+              size: 35,
+            ),
+            SizedBox(height: 12),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF212121),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
