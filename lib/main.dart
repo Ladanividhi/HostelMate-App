@@ -1,4 +1,5 @@
 import 'package:HostelMate/admin/ADashboard.dart';
+import 'package:HostelMate/hostelite/HDashboard.dart';
 import 'package:HostelMate/screens/SplashScreen.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +12,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: ADashboard(), debugShowCheckedModeBanner: false);
+    return MaterialApp(home: HDashboard(), debugShowCheckedModeBanner: false);
   }
 }

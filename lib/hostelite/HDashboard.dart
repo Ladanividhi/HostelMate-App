@@ -1,6 +1,13 @@
+import 'package:HostelMate/admin/AGatepass.dart';
+import 'package:HostelMate/hostelite/HComplaints.dart';
+import 'package:HostelMate/hostelite/HGatepass.dart';
+import 'package:HostelMate/hostelite/HHostelites.dart';
+import 'package:HostelMate/hostelite/HProfile.dart';
+import 'package:HostelMate/hostelite/HRequests.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
+import 'package:flutter/services.dart';
 
 class HDashboard extends StatelessWidget {
   final List<Map<String, dynamic>> dashboardItems = [
@@ -19,96 +26,134 @@ class HDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final filteredItems = dashboardItems.sublist(0, 9);
 
-    return Scaffold(
-      backgroundColor: Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Header
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
-              decoration: BoxDecoration(
-                color: primary_color,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Left part: Welcome + Name + Info
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Welcome to HostelMate",
-                        style: GoogleFonts.poppins(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        "Ladani Vidhi Avanish",
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        "Hostel ID: H123 | Room: 302 | Bed: B",
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: primary_color,
+        statusBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: Color(0xFFF5F5F5),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Header
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+                decoration: BoxDecoration(
+                  color: primary_color,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(32),
+                    bottomRight: Radius.circular(32),
                   ),
-
-                  // Right part: Profile icon
-                  InkWell(
-                    onTap: () {
-                      print("Profile tapped");
-                    },
-                    child: CircleAvatar(
-                      backgroundColor: Colors.white,
-                      radius: 20,
-                      child: Icon(Icons.person, color: primary_color, size: 28),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Left part: Welcome + Name + Info
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Welcome to HostelMate",
+                          style: GoogleFonts.poppins(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          "Ladani Vidhi Avanish",
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          "Hostel ID: H123 | Room: 302 | Bed: B",
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
 
-            SizedBox(height: 26),
-            // Dashboard grid
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.count(
-                  physics: NeverScrollableScrollPhysics(),
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 0.7,
-                  children: List.generate(filteredItems.length, (index) {
-                    return dashboardCard(
-                      icon: filteredItems[index]['icon'],
-                      label: filteredItems[index]['label'],
+                    // Right part: Profile icon
+                    InkWell(
                       onTap: () {
-                        print("${filteredItems[index]['label']} tapped");
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => HProfilePage()),
+                        );
+                        print("Profile tapped");
                       },
-                    );
-                  }),
+                      child: CircleAvatar(
+                        backgroundColor: Colors.white,
+                        radius: 20,
+                        child: Icon(Icons.person, color: primary_color, size: 28),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            )
-          ],
+
+              SizedBox(height: 26),
+              // Dashboard grid
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: GridView.count(
+                    physics: NeverScrollableScrollPhysics(),
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.7,
+                    children: List.generate(filteredItems.length, (index) {
+                      return dashboardCard(
+                        icon: filteredItems[index]['icon'],
+                        label: filteredItems[index]['label'],
+                        onTap: () {
+                          print("${filteredItems[index]['label']} tapped");
+                          if(filteredItems[index]['label'] == 'Hostelites')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HHostelitePage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'Generate Gatepass')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HGatepassPage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'Send Request')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HRequestPage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'Draft Complaint')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HComplaintPage()),
+                            );
+                          }
+                        },
+                      );
+                    }),
+                  ),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );
