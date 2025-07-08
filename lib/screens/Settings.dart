@@ -1,3 +1,5 @@
+import 'package:HostelMate/admin/AFaqs.dart';
+import 'package:HostelMate/hostelite/HFaqs.dart';
 import 'package:HostelMate/screens/AboutUs.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -55,7 +57,12 @@ class _SettingsPageState extends State<SettingsPage> {
             settingTile(
               icon: Icons.question_answer_outlined,
               label: "FAQs",
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AFaqsPage()),
+                );
+              },
             ),
             settingTile(
               icon: Icons.info_outline,
