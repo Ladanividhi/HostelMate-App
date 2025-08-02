@@ -1,5 +1,6 @@
 import 'package:HostelMate/admin/AdminLogin.dart';
 import 'package:HostelMate/hostelite/HSignUp.dart';
+import 'package:HostelMate/hostelite/HosteliteIdChk.dart';
 import 'package:HostelMate/utils/Constants.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,20 +17,8 @@ class _SelectRolePageState extends State<SelectRolePage> {
   @override
   void initState() {
     super.initState();
-    fetchUsers();
   }
 
-  Future<void> fetchUsers() async {
-    try {
-      await FirebaseFirestore.instance.collection('Users').add({
-        'Name': "Harmi",
-        'Email': "harmikotak@gmail.com",
-      });
-      print("User added successfully!");
-    } catch (e) {
-      print("Error adding user: $e");
-    }
-  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,7 +58,7 @@ class _SelectRolePageState extends State<SelectRolePage> {
                     } else {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => HSignUpPage()),
+                        MaterialPageRoute(builder: (context) => HosteliteIdCheckPage()),
                       );
                     }
                   },
