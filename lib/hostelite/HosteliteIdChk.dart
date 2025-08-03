@@ -1,4 +1,3 @@
-
 import 'package:HostelMate/hostelite/HSignIn.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/hostelite/HSignUp.dart';
@@ -27,9 +26,13 @@ class _HosteliteIdCheckPageState extends State<HosteliteIdCheckPage> {
 
     try {
       final hostelId = hostelIdController.text.trim();
+      final password = passwordController.text.trim();
+      print("🔍 Entered Hostel ID: $hostelId");
+      print("🔐 Entered Password: $password");
 
       if (hostelId.isEmpty) {
         showSnack("Please enter Hostel ID.");
+        print("❌ Hostel ID is empty.");
         return;
       }
 
@@ -38,31 +41,82 @@ class _HosteliteIdCheckPageState extends State<HosteliteIdCheckPage> {
           .where("HostelId", isEqualTo: hostelId)
           .get();
 
+      print("📦 Documents found: ${querySnapshot.docs.length}");
+
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
         final email = data["Email"]?.toString() ?? "";
+        final dbHostelId = data["HostelId"]?.toString() ?? "";
 
-        if ((email == "a")) {
+        print("✅ Found record -> HostelId: $dbHostelId, Email: $email");
+        final docId = querySnapshot.docs.first.id;
+        if (email == "a") {
+          print("➡️ Proceeding to HSignUpPage...");
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => HSignUpPage(
                 hostelId: hostelId,
-                password: passwordController.text.trim(),
+                password: password,
+                docId: docId,
               ),
             ),
           );
         } else {
+          print("⚠️ Email is not 'a', user already registered.");
           showSnack("User already exists, kindly sign in.");
         }
       } else {
+        print("❌ No matching Hostel ID found in Firestore.");
         showSnack("Invalid Hostel ID.");
       }
     } catch (e) {
-      print("Error while fetching HostelId: $e");
+      print("❗ Error while fetching HostelId: $e");
       showSnack("Something went wrong. Please try again.");
     }
   }
+
+  // void checkHostelIdAndProceed() async {
+  //   if (!_formKey.currentState!.validate()) return;
+  //
+  //   try {
+  //     final hostelId = hostelIdController.text.trim();
+  //
+  //     if (hostelId.isEmpty) {
+  //       showSnack("Please enter Hostel ID.");
+  //       return;
+  //     }
+  //
+  //     final querySnapshot = await FirebaseFirestore.instance
+  //         .collection("Users")
+  //         .where("HostelId", isEqualTo: hostelId)
+  //         .get();
+  //
+  //     if (querySnapshot.docs.isNotEmpty) {
+  //       final data = querySnapshot.docs.first.data();
+  //       final email = data["Email"]?.toString() ?? "";
+  //
+  //       if ((email == "a")) {
+  //         Navigator.push(
+  //           context,
+  //           MaterialPageRoute(
+  //             builder: (context) => HSignUpPage(
+  //               hostelId: hostelId,
+  //               password: passwordController.text.trim(),
+  //             ),
+  //           ),
+  //         );
+  //       } else {
+  //         showSnack("User already exists, kindly sign in.");
+  //       }
+  //     } else {
+  //       showSnack("Invalid Hostel ID.");
+  //     }
+  //   } catch (e) {
+  //     print("Error while fetching HostelId: $e");
+  //     showSnack("Something went wrong. Please try again.");
+  //   }
+  // }
 
   void showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(

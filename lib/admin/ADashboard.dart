@@ -1,3 +1,4 @@
+import 'package:HostelMate/admin/AAddHostelite.dart';
 import 'package:HostelMate/admin/AComplaints.dart';
 import 'package:HostelMate/admin/AGatepass.dart';
 import 'package:HostelMate/admin/AHostelites.dart';
@@ -26,6 +27,7 @@ class _ADashboardState extends State<ADashboard> {
     {"icon": Icons.vpn_key_outlined, "label": "Gatepass"},
     {"icon": Icons.qr_code_scanner, "label": "Scanner"},
     {"icon": Icons.feedback_outlined, "label": "Feedback"},
+    {"icon": Icons.add_circle_outlined, "label": "Add Hostelite"},
   ];
 
   @override
@@ -120,6 +122,13 @@ class _ADashboardState extends State<ADashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => AVacancyPage()),
+                            );
+                          }
+                          else if(dashboardItems[index]['label'] == 'Add Hostelite')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => AddHostelitePage()),
                             );
                           }
                         },

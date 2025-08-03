@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:HostelMate/hostelite/HDashboard.dart';
 
 class HSignInPage extends StatefulWidget {
   @override
@@ -19,7 +20,6 @@ class _HSignInPageState extends State<HSignInPage> {
   void showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message, style: GoogleFonts.poppins(color: Colors.white)),
-      backgroundColor: primary_color,
     ));
   }
 
@@ -30,23 +30,39 @@ class _HSignInPageState extends State<HSignInPage> {
     final password = passwordController.text.trim();
 
     try {
-      final querySnapshot = await FirebaseFirestore.instance
+      await FirebaseFirestore.instance.collection("Users").limit(1).get();
+
+      // Try as string first
+      var userQuery = await FirebaseFirestore.instance
           .collection("Users")
           .where("HostelId", isEqualTo: hostelId)
-          .where("Password", isEqualTo: password)
           .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => HSignInPage()),
-        );
+      // If no results, try as number
+      if (userQuery.docs.isEmpty && int.tryParse(hostelId) != null) {
+        userQuery = await FirebaseFirestore.instance
+            .collection("Users")
+            .where("HostelId", isEqualTo: int.parse(hostelId))
+            .get();
+      }
+      
+      if (userQuery.docs.isNotEmpty) {
+        final userData = userQuery.docs.first.data();
+
+        // Check if password matches
+        if (userData['Password'] == password) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => HDashboard()),
+          );
+        } else {
+          showSnack("Invalid Hostel ID or Password.");
+        }
       } else {
         showSnack("Invalid Hostel ID or Password.");
       }
     } catch (e) {
-      print("Login error: $e");
       showSnack("Something went wrong. Please try again.");
     }
   }
@@ -67,7 +83,7 @@ class _HSignInPageState extends State<HSignInPage> {
               children: [
                 SizedBox(height: 16),
                 Text(
-                  "Hostelite Sign In",
+                  "Hostelite Login",
                   style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
