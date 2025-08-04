@@ -40,6 +40,7 @@ dependencies:
   firebase_auth: ^5.5.4
   firebase_messaging: ^15.0.1
   cloud_firestore: ^5.6.8
+  firebase_storage: ^12.4.10
 
 
 dev_dependencies:
@@ -55,6 +56,9 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.3
   google_fonts: ^6.2.1
   mobile_scanner: ^7.0.1
+  qr_flutter: ^4.0.0
+  path_provider: ^2.1.2
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
