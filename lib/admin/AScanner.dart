@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
@@ -44,19 +45,63 @@ class _AScannerPageState extends State<AScannerPage> {
                       controller: MobileScannerController(
                         torchEnabled: false,
                       ),
-                      onDetect: (capture) {
-                        final List<Barcode> barcodes = capture.barcodes;
-                        if (barcodes.isNotEmpty) {
+                        onDetect: (capture) async {
+                          final List<Barcode> barcodes = capture.barcodes;
+                          if (barcodes.isEmpty) {
+                            setState(() {
+                              scannedData = "Failed to scan QR Code.";
+                            });
+                            return;
+                          }
+
                           final String code = barcodes.first.rawValue ?? 'Failed to scan QR Code.';
                           setState(() {
                             scannedData = code;
                           });
-                        } else {
-                          setState(() {
-                            scannedData = "Failed to scan QR Code.";
-                          });
-                        }
-                      },
+
+                          try {
+                            // ✅ Step 1: Check if hostelId exists in Users
+                            final userSnap = await FirebaseFirestore.instance
+                                .collection('Users')
+                                .where('HostelId', isEqualTo: code)
+                                .limit(1)
+                                .get();
+
+                            if (userSnap.docs.isEmpty) {
+                              debugPrint("❌ No user found with HostelId: $code");
+                              return;
+                            }
+
+                            // ✅ Step 2: Check Scanner table
+                            final scannerQuery = await FirebaseFirestore.instance
+                                .collection('Scanner')
+                                .where('HostelID', isEqualTo: code)
+                                .where('ExitTime', isNotEqualTo: null)
+                                .where('EntryTime', isEqualTo: null)
+                                .limit(1)
+                                .get();
+
+                            if (scannerQuery.docs.isNotEmpty) {
+                              // Update EntryTime
+                              final docId = scannerQuery.docs.first.id;
+                              await FirebaseFirestore.instance
+                                  .collection('Scanner')
+                                  .doc(docId)
+                                  .update({'EntryTime': Timestamp.now()});
+                              debugPrint("✅ EntryTime updated for $code");
+                            } else {
+                              // Create new entry with ExitTime now, EntryTime null
+                              await FirebaseFirestore.instance.collection('Scanner').add({
+                                'HostelID': code,
+                                'ExitTime': Timestamp.now(),
+                                'EntryTime': null,
+                              });
+                              debugPrint("✅ New ExitTime record created for $code");
+                            }
+                          } catch (e) {
+                            debugPrint("🔥 Error processing QR scan: $e");
+                          }
+                        },
                     ),
 
                     // Scanning frame overlay

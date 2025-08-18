@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HHostelitePage extends StatefulWidget {
   @override
@@ -9,19 +10,7 @@ class HHostelitePage extends StatefulWidget {
 }
 
 class _HHostelitePageState extends State<HHostelitePage> {
-  List<Map<String, String>> hostelites = [
-    {"name": "Vidhi Ladani", "room": "302"},
-    {"name": "Riya Shah", "room": "101"},
-    {"name": "Mihir Joshi", "room": "205"},
-    {"name": "Sneha Patel", "room": "303"},
-    {"name": "Ankit Mehta", "room": "102"},
-    {"name": "Dhruv Shah", "room": "305"},
-    {"name": "Nidhi Sharma", "room": "104"},
-    {"name": "Yashraj Chauhan", "room": "308"},
-    {"name": "Tanvi Desai", "room": "210"},
-    {"name": "Aarav Soni", "room": "106"},
-  ];
-
+  List<Map<String, String>> hostelites = [];
   List<Map<String, String>> filteredHostelites = [];
 
   final TextEditingController searchController = TextEditingController();
@@ -29,7 +18,42 @@ class _HHostelitePageState extends State<HHostelitePage> {
   @override
   void initState() {
     super.initState();
-    filteredHostelites = hostelites;
+    fetchHostelites();
+    debugPrintRooms();
+  }
+
+  Future<void> fetchHostelites() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .get();
+
+      final List<Map<String, String>> loadedHostelites = snapshot.docs
+          .map((doc) {
+        final data = doc.data();
+
+        // Extract fields
+        final email = (data["Email"] ?? "").toString().trim();
+        final name = (data["Name"] ?? "Unknown").toString();
+        final room = (data["RoomNumber"] ?? "N/A").toString();
+
+        return {
+          "email": email,
+          "name": name,
+          "room": room,
+        };
+      })
+      // Filter out users whose email == "a"
+          .where((hostelite) => hostelite["email"]?.toLowerCase() != "a")
+          .toList();
+
+      setState(() {
+        hostelites = loadedHostelites;
+        filteredHostelites = loadedHostelites;
+      });
+    } catch (e) {
+      print("Error fetching hostelites: $e");
+    }
   }
 
   void searchHostelite(String query) {
@@ -145,5 +169,32 @@ class _HHostelitePageState extends State<HHostelitePage> {
         ),
       ),
     );
+  }
+  Future<void> debugPrintRooms() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Rooms')
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        print("No rooms found.");
+        return;
+      }
+
+      // Print header
+      print("Room ID\t\tStatus\t\tOther Fields");
+      print("=====================================");
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final roomId = doc.id;
+        final status = data["status"] ?? "N/A";
+
+        // Print row (add other fields as needed)
+        print("$roomId\t\t$status\t\t$data");
+      }
+    } catch (e) {
+      print("Error fetching rooms: $e");
+    }
   }
 }

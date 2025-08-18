@@ -17,6 +17,7 @@ class _HosteliteIdCheckPageState extends State<HosteliteIdCheckPage> {
   final hostelIdController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final secretcodeController = TextEditingController();
 
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
@@ -27,6 +28,7 @@ class _HosteliteIdCheckPageState extends State<HosteliteIdCheckPage> {
     try {
       final hostelId = hostelIdController.text.trim();
       final password = passwordController.text.trim();
+      final secretcodeinput = secretcodeController.text.trim();
       print("🔍 Entered Hostel ID: $hostelId");
       print("🔐 Entered Password: $password");
 
@@ -47,8 +49,15 @@ class _HosteliteIdCheckPageState extends State<HosteliteIdCheckPage> {
         final data = querySnapshot.docs.first.data();
         final email = data["Email"]?.toString() ?? "";
         final dbHostelId = data["HostelId"]?.toString() ?? "";
+        final secretcode = data["SecretCode"]?.toString() ?? "";
 
-        print("✅ Found record -> HostelId: $dbHostelId, Email: $email");
+        print("✅ Found record -> HostelId: $dbHostelId, SecretCode: $secretcode, Email: $email");
+
+        if (secretcode != secretcodeinput) {
+          showSnack("Invalid secret code.");
+          return;
+        }
+
         final docId = querySnapshot.docs.first.id;
         if (email == "a") {
           print("➡️ Proceeding to HSignUpPage...");
@@ -76,47 +85,6 @@ class _HosteliteIdCheckPageState extends State<HosteliteIdCheckPage> {
     }
   }
 
-  // void checkHostelIdAndProceed() async {
-  //   if (!_formKey.currentState!.validate()) return;
-  //
-  //   try {
-  //     final hostelId = hostelIdController.text.trim();
-  //
-  //     if (hostelId.isEmpty) {
-  //       showSnack("Please enter Hostel ID.");
-  //       return;
-  //     }
-  //
-  //     final querySnapshot = await FirebaseFirestore.instance
-  //         .collection("Users")
-  //         .where("HostelId", isEqualTo: hostelId)
-  //         .get();
-  //
-  //     if (querySnapshot.docs.isNotEmpty) {
-  //       final data = querySnapshot.docs.first.data();
-  //       final email = data["Email"]?.toString() ?? "";
-  //
-  //       if ((email == "a")) {
-  //         Navigator.push(
-  //           context,
-  //           MaterialPageRoute(
-  //             builder: (context) => HSignUpPage(
-  //               hostelId: hostelId,
-  //               password: passwordController.text.trim(),
-  //             ),
-  //           ),
-  //         );
-  //       } else {
-  //         showSnack("User already exists, kindly sign in.");
-  //       }
-  //     } else {
-  //       showSnack("Invalid Hostel ID.");
-  //     }
-  //   } catch (e) {
-  //     print("Error while fetching HostelId: $e");
-  //     showSnack("Something went wrong. Please try again.");
-  //   }
-  // }
 
   void showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -171,6 +139,12 @@ class _HosteliteIdCheckPageState extends State<HosteliteIdCheckPage> {
                           label: "Hostel ID",
                           controller: hostelIdController,
                           validatorMsg: "Please enter Hostel ID",
+                        ),
+                        SizedBox(height: 18),
+                        buildTextField(
+                          label: "Secret Code",
+                          controller: secretcodeController,
+                          validatorMsg: "Please enter the secret code",
                         ),
                         SizedBox(height: 18),
                         buildPasswordField(

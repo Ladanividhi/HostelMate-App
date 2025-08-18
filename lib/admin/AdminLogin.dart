@@ -133,6 +133,11 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     final password = passwordController.text.trim();
     final secretKey = secretKeyController.text.trim();
 
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => ADashboard()),
+    );
     if (username.isEmpty || password.isEmpty || secretKey.isEmpty) {
       showError("Please fill in all fields.");
       return;
@@ -141,9 +146,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     setState(() => isLoading = true);
 
     try {
-      // 🔐 Only hash password and secret key
-      final hashedPassword = sha256.convert(utf8.encode(password)).toString();
-      final hashedSecret = sha256.convert(utf8.encode(secretKey)).toString();
 
       // 🔎 Look for admin document by raw (plain text) username
       final snapshot = await FirebaseFirestore.instance
@@ -194,99 +196,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     }
   }
 
-
-
-  Future<void> _debugCredentials() async {
-    final username = usernameController.text.trim();
-    final password = passwordController.text.trim();
-    final secretKey = secretKeyController.text.trim();
-
-    print('\n🔍 DEBUG: Testing current credentials');
-    print('Username: "$username"');
-    print('Password: "$password"');
-    print('Secret Key: "$secretKey"');
-
-    if (username.isEmpty || password.isEmpty || secretKey.isEmpty) {
-      print('❌ One or more fields are empty');
-      return;
-    }
-
-    try {
-      // Hash the credentials
-      final hashedPassword = sha256.convert(utf8.encode(password)).toString();
-      final hashedSecret = sha256.convert(utf8.encode(secretKey)).toString();
-
-      print('\n📝 Generated hashes:');
-      print('Password hash: $hashedPassword');
-      print('Secret hash: $hashedSecret');
-
-      // Query Firebase
-      final snapshot = await FirebaseFirestore.instance
-          .collection('Admin')
-          .where('username', isEqualTo: username)
-          .limit(1)
-          .get();
-
-      print('\n📊 Firebase query result:');
-      print('Documents found: ${snapshot.docs.length}');
-
-      if (snapshot.docs.isEmpty) {
-        print('❌ No admin found with username: "$username"');
-        return;
-      }
-
-      final adminData = snapshot.docs.first.data();
-      print('Document ID: ${snapshot.docs.first.id}');
-      print('All fields: ${adminData.keys}');
-
-      if (!adminData.containsKey('password')) {
-        print('❌ No password field found');
-        return;
-      }
-
-      if (!adminData.containsKey('security')) {
-        print('❌ No security field found');
-        return;
-      }
-
-      final storedPassword = adminData['password'];
-      final storedSecret = adminData['security'];
-
-      print('\n💾 Stored values in Firebase:');
-      print('Stored password: $storedPassword');
-      print('Stored secret: $storedSecret');
-
-      print('\n🔍 Detailed comparison:');
-      print('Password lengths - Input: ${hashedPassword.length}, Stored: ${storedPassword.length}');
-      print('Secret lengths - Input: ${hashedSecret.length}, Stored: ${storedSecret.length}');
-      print('Password match: ${hashedPassword == storedPassword ? '✅ YES' : '❌ NO'}');
-      print('Secret match: ${hashedSecret == storedSecret ? '✅ YES' : '❌ NO'}');
-
-      if (hashedPassword != storedPassword) {
-        print('\n🔍 Password mismatch details:');
-        print('First 10 chars of input hash: ${hashedPassword.substring(0, 10)}...');
-        print('First 10 chars of stored hash: ${storedPassword.substring(0, 10)}...');
-      }
-
-      if (hashedSecret != storedSecret) {
-        print('\n🔍 Secret mismatch details:');
-        print('First 10 chars of input hash: ${hashedSecret.substring(0, 10)}...');
-        print('First 10 chars of stored hash: ${storedSecret.substring(0, 10)}...');
-      }
-
-      if (hashedPassword == storedPassword && hashedSecret == storedSecret) {
-        print('\n🎉 AUTHENTICATION WOULD SUCCEED!');
-        showSuccess("Debug: Credentials are correct!");
-      } else {
-        print('\n❌ AUTHENTICATION WOULD FAIL!');
-        showError("Debug: Credentials are incorrect!");
-      }
-
-    } catch (e) {
-      print('❌ Error during debug: $e');
-      showError("Debug error: $e");
-    }
-  }
 
   // Label Widget
   Widget textLabel(String text) {

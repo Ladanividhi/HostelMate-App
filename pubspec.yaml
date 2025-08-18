@@ -58,6 +58,7 @@ dev_dependencies:
   mobile_scanner: ^7.0.1
   qr_flutter: ^4.0.0
   path_provider: ^2.1.2
+  shared_preferences: ^2.2.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

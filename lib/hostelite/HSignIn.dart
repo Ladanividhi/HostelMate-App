@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/hostelite/HDashboard.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HSignInPage extends StatefulWidget {
   @override
@@ -51,6 +52,9 @@ class _HSignInPageState extends State<HSignInPage> {
 
         // Check if password matches
         if (userData['Password'] == password) {
+          // Store hostelite ID in shared preferences
+          await _storeHosteliteData(hostelId, userData);
+          
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -64,6 +68,27 @@ class _HSignInPageState extends State<HSignInPage> {
       }
     } catch (e) {
       showSnack("Something went wrong. Please try again.");
+    }
+  }
+
+  Future<void> _storeHosteliteData(String hostelId, Map<String, dynamic> userData) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Store hostelite ID and other useful data
+      await prefs.setString('hostelite_id', hostelId);
+      await prefs.setString('hostelite_room', userData['RoomNumber']?.toString() ?? '');
+      await prefs.setString('hostelite_bed', userData['BedNumber']?.toString() ?? '');
+      await prefs.setString('hostelite_scanner_img', userData['ScannerImg']?.toString() ?? '');
+      await prefs.setString('hostelite_name', userData['Name']?.toString() ?? '');
+      
+      print("✅ Hostelite data stored in shared preferences:");
+      print("   - Hostel ID: $hostelId");
+      print("   - Room: ${userData['RoomNumber']}");
+      print("   - Bed: ${userData['BedNumber']}");
+      print("   - Scanner Image: ${userData['ScannerImg']}");
+    } catch (e) {
+      print("❌ Error storing hostelite data: $e");
     }
   }
 

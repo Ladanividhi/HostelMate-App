@@ -30,11 +30,107 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
     ensureSignedIn();
     fetchAvailableRooms();
   }
+
+  // Debug method to test QR generation
+  Future<void> testQrGeneration() async {
+    print("🧪 Testing QR generation...");
+    final testId = "TEST_QR_123";
+    
+    // Test QR generation without upload first
+    try {
+      final painter = QrPainter(
+        data: testId,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.H,
+        color: const Color(0xFF000000),
+        emptyColor: Colors.white,
+        gapless: true,
+      );
+
+      final picData = await painter.toImageData(200);
+      if (picData != null) {
+        print("✅ QR generation test successful - image data created");
+        final bytes = picData.buffer.asUint8List();
+        print("📊 Generated ${bytes.length} bytes");
+        
+        // Test file writing
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/test_qr.png');
+        await file.writeAsBytes(bytes);
+        print("✅ File written successfully: ${file.path}");
+      } else {
+        print("❌ QR generation test failed - no image data");
+      }
+    } catch (e) {
+      print("❌ QR generation test error: $e");
+      print("❌ Error stack trace: ${StackTrace.current}");
+    }
+  }
+
+  // Alternative QR generation method using a simpler approach
+  Future<String?> generateSimpleQrCode(String hostelId) async {
+    try {
+      print("🔍 Generating simple QR for hostel ID: $hostelId");
+      
+      // Create a simple QR code
+      final painter = QrPainter(
+        data: hostelId,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.L,
+        color: const Color(0xFF000000),
+        emptyColor: Colors.white,
+        gapless: false,
+      );
+
+      // Convert to image data
+      final picData = await painter.toImageData(100);
+      if (picData == null) {
+        print("❌ Simple QR generation failed");
+        return null;
+      }
+
+      final bytes = picData.buffer.asUint8List();
+      print("📊 Simple QR bytes: ${bytes.length}");
+
+      // Save to file
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/simple_$hostelId.png');
+      await file.writeAsBytes(bytes);
+
+      // Check Firebase Auth before upload
+      final auth = FirebaseAuth.instance;
+      if (auth.currentUser == null) {
+        print("❌ No Firebase user signed in, cannot upload");
+        throw Exception("Firebase authentication required");
+      }
+
+      // Upload to Firebase
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('qr_codes')
+          .child('simple_$hostelId.png');
+
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+      print("✅ Simple QR uploaded: $url");
+      return url;
+    } catch (e) {
+      print("❌ Simple QR error: $e");
+      return null;
+    }
+  }
   Future<void> ensureSignedIn() async {
     final auth = FirebaseAuth.instance;
 
     if (auth.currentUser == null) {
-      await auth.signInAnonymously();
+      try {
+        await auth.signInAnonymously();
+        print("✅ Firebase Auth: Signed in anonymously");
+      } catch (e) {
+        print("❌ Firebase Auth error: $e");
+      }
+    } else {
+      print("✅ Firebase Auth: Already signed in as ${auth.currentUser?.uid}");
     }
   }
   Future<void> fetchAvailableRooms() async {
@@ -89,46 +185,211 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
   }
   Future<String?> generateAndUploadQrCode(String hostelId) async {
     try {
-      final qrValidationResult = QrValidator.validate(
-        data: hostelId,
-        version: QrVersions.auto,
-        errorCorrectionLevel: QrErrorCorrectLevel.H,
-      );
+      print("🔍 Generating QR for hostel ID: $hostelId");
+      
+      // Ensure Firebase Auth is signed in
+      await ensureSignedIn();
+      
+      // Method 1: Try with QrPainter
+      try {
+        final painter = QrPainter(
+          data: hostelId,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.H,
+          color: const Color(0xFF000000),
+          emptyColor: Colors.white,
+          gapless: true,
+        );
 
-      if (qrValidationResult.status != QrValidationStatus.valid) {
-        throw Exception("Invalid QR data");
+        final picData = await painter.toImageData(200);
+        if (picData != null) {
+          final bytes = picData.buffer.asUint8List();
+          print("📊 QR image bytes generated: ${bytes.length} bytes");
+
+          // Save to temporary file
+          final tempDir = await getTemporaryDirectory();
+          final file = File('${tempDir.path}/$hostelId.png');
+          await file.writeAsBytes(bytes);
+
+          print("📦 File written at: ${file.path}");
+
+          // Check Firebase Auth before upload
+          final auth = FirebaseAuth.instance;
+          if (auth.currentUser == null) {
+            print("❌ No Firebase user signed in, cannot upload");
+            throw Exception("Firebase authentication required");
+          }
+
+          // Upload to Firebase Storage
+          final ref = FirebaseStorage.instance
+              .ref()
+              .child('qr_codes')
+              .child('$hostelId.png');
+
+          final uploadTask = ref.putFile(file);
+          final snapshot = await uploadTask;
+          print("✅ Upload completed, bytes transferred: ${snapshot.bytesTransferred}");
+
+          final url = await ref.getDownloadURL();
+          print("✅ QR uploaded successfully: $url");
+          return url;
+        }
+      } catch (e) {
+        print("⚠️ Method 1 failed: $e");
       }
 
-      final qrCode = qrValidationResult.qrCode!;
-      final painter = QrPainter.withQr(
-        qr: qrCode,
-        color: const Color(0xFF000000),
-        emptyColor: Colors.white,
-        gapless: true,
-      );
+      // Method 2: Try with QrValidator first
+      try {
+        final qrValidationResult = QrValidator.validate(
+          data: hostelId,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.H,
+        );
 
-      final picData = await painter.toImageData(300);
-      final bytes = picData!.buffer.asUint8List();
+        if (qrValidationResult.status == QrValidationStatus.valid) {
+          final qrCode = qrValidationResult.qrCode!;
+          final painter = QrPainter.withQr(
+            qr: qrCode,
+            color: const Color(0xFF000000),
+            emptyColor: Colors.white,
+            gapless: true,
+          );
 
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/$hostelId.png');
-      await file.writeAsBytes(bytes);
+          final picData = await painter.toImageData(200);
+          if (picData != null) {
+                      final bytes = picData.buffer.asUint8List();
+          print("📊 QR image bytes generated (Method 2): ${bytes.length} bytes");
 
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('qr_codes')
-          .child('$hostelId.png');
-      final uploadTask = await ref.putFile(file);
+          final tempDir = await getTemporaryDirectory();
+          final file = File('${tempDir.path}/$hostelId.png');
+          await file.writeAsBytes(bytes);
 
-      return await uploadTask.ref.getDownloadURL();
+          // Check Firebase Auth before upload
+          final auth = FirebaseAuth.instance;
+          if (auth.currentUser == null) {
+            print("❌ No Firebase user signed in, cannot upload");
+            throw Exception("Firebase authentication required");
+          }
+
+          final ref = FirebaseStorage.instance
+              .ref()
+              .child('qr_codes')
+              .child('$hostelId.png');
+
+          final uploadTask = ref.putFile(file);
+          await uploadTask;
+
+          final url = await ref.getDownloadURL();
+          print("✅ QR uploaded successfully (Method 2): $url");
+          return url;
+          }
+        }
+      } catch (e) {
+        print("⚠️ Method 2 failed: $e");
+      }
+
+      // Method 3: Try with a different size
+      try {
+        final painter = QrPainter(
+          data: hostelId,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.L,
+          color: const Color(0xFF000000),
+          emptyColor: Colors.white,
+          gapless: false,
+        );
+
+        final picData = await painter.toImageData(150);
+        if (picData != null) {
+          final bytes = picData.buffer.asUint8List();
+          print("📊 QR image bytes generated (Method 3): ${bytes.length} bytes");
+
+          final tempDir = await getTemporaryDirectory();
+          final file = File('${tempDir.path}/$hostelId.png');
+          await file.writeAsBytes(bytes);
+
+          // Check Firebase Auth before upload
+          final auth = FirebaseAuth.instance;
+          if (auth.currentUser == null) {
+            print("❌ No Firebase user signed in, cannot upload");
+            throw Exception("Firebase authentication required");
+          }
+
+          final ref = FirebaseStorage.instance
+              .ref()
+              .child('qr_codes')
+              .child('$hostelId.png');
+
+          final uploadTask = ref.putFile(file);
+          await uploadTask;
+
+          final url = await ref.getDownloadURL();
+          print("✅ QR uploaded successfully (Method 3): $url");
+          return url;
+        }
+      } catch (e) {
+        print("⚠️ Method 3 failed: $e");
+      }
+
+      // Method 4: Try simple QR generation
+      try {
+        final simpleUrl = await generateSimpleQrCode(hostelId);
+        if (simpleUrl != null) {
+          print("✅ Simple QR method succeeded: $simpleUrl");
+          return simpleUrl;
+        }
+      } catch (e) {
+        print("⚠️ Simple QR method failed: $e");
+      }
+
+      // Method 5: Create local QR code without Firebase Storage
+      try {
+        print("🔍 Creating local QR code for hostel ID: $hostelId");
+        
+        final painter = QrPainter(
+          data: hostelId,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.L,
+          color: const Color(0xFF000000),
+          emptyColor: Colors.white,
+          gapless: false,
+        );
+
+        final picData = await painter.toImageData(150);
+        if (picData != null) {
+          final bytes = picData.buffer.asUint8List();
+          print("📊 Local QR bytes: ${bytes.length}");
+
+          // Save to app documents directory (persistent)
+          final appDir = await getApplicationDocumentsDirectory();
+          final qrDir = Directory('${appDir.path}/qr_codes');
+          if (!await qrDir.exists()) {
+            await qrDir.create(recursive: true);
+          }
+          
+          final file = File('${qrDir.path}/$hostelId.png');
+          await file.writeAsBytes(bytes);
+          
+          print("✅ Local QR saved: ${file.path}");
+          // Return a data URL or file path that can be used
+          return "file://${file.path}";
+        }
+      } catch (e) {
+        print("⚠️ Local QR method failed: $e");
+      }
+
+      // If all methods fail, create a placeholder URL
+      print("⚠️ All QR generation methods failed, using placeholder");
+      return "https://via.placeholder.com/200x200/000000/FFFFFF?text=QR+Failed";
+      
     } catch (e) {
-      print("QR Generation/Upload error: $e");
-      return null;
+      print("❌ QR Generation/Upload error: $e");
+      print("❌ Error stack trace: ${StackTrace.current}");
+      return "https://via.placeholder.com/200x200/000000/FFFFFF?text=QR+Error";
     }
   }
 
-
-
+//vbghvhyjb,jhb
   void addHostelite(String hostelId) async {
     final room = selectedRoom!;
     final bed = selectedBed!;
@@ -136,8 +397,30 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
     setState(() => isLoading = true);
 
     try {
+      print("🚀 Starting hostelite addition process...");
+      print("📋 Details - Hostel ID: $hostelId, Room: $room, Bed: $bed");
+      
+      // Step 1: Generate QR Code
+      print("🔍 Step 1: Generating QR code...");
       final String? qrUrl = await generateAndUploadQrCode(hostelId);
-      await FirebaseFirestore.instance.collection("Users").add({
+      print("✅✅✅✅✅QR URL: $qrUrl");
+
+      if (qrUrl == null || qrUrl.contains("placeholder")) {
+        print("❌ QR generation failed, showing error message");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("QR generation failed. Please try again."),
+          ),
+        );
+        setState(() => isLoading = false);
+        return;
+      }
+
+      print("✅ QR URL obtained: $qrUrl");
+      
+      // Step 2: Add to Users collection
+      print("🔍 Step 2: Adding to Users collection...");
+      final userData = {
         "HostelId": hostelId,
         "RoomNumber": room,
         "BedNumber": bed,
@@ -157,8 +440,15 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
         "MotherContact": null,
         "GuardianEmail": null,
         "ScannerImg": qrUrl,
-      });
+      };
+      
+      print("📋 User data to be added: $userData");
+      
+      final userDocRef = await FirebaseFirestore.instance.collection("Users").add(userData);
+      print("✅ User added successfully with ID: ${userDocRef.id}");
 
+      // Step 3: Update Room status
+      print("🔍 Step 3: Updating room status...");
       final roomSnapshot = await FirebaseFirestore.instance
           .collection("Rooms")
           .where("RoomNumber", isEqualTo: room)
@@ -166,25 +456,57 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
           .limit(1)
           .get();
 
+      print("📋 Found ${roomSnapshot.docs.length} room documents");
+
       if (roomSnapshot.docs.isNotEmpty) {
         final roomDocId = roomSnapshot.docs.first.id;
+        print("📋 Updating room document: $roomDocId");
+        
         await FirebaseFirestore.instance
             .collection("Rooms")
             .doc(roomDocId)
             .update({"Status": true});
+        print("✅ Room status updated successfully");
+      } else {
+        print("⚠️ No room document found to update");
       }
 
+      // Step 4: Verify the hostelite was added
+      print("🔍 Step 4: Verifying hostelite was added...");
+      final verifySnapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .where("HostelId", isEqualTo: hostelId)
+          .limit(1)
+          .get();
+      
+      if (verifySnapshot.docs.isNotEmpty) {
+        print("✅ Hostelite verification successful: ${verifySnapshot.docs.first.id}");
+      } else {
+        print("⚠️ Hostelite verification failed: No document found");
+      }
+
+      // Step 5: Success message and cleanup
+      print("✅ All operations completed successfully!");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Hostelite added successfully!")),
+        SnackBar(
+          content: Text("Hostelite added successfully!"),
+        ),
       );
 
       secretCodeController.clear();
       setState(() => selectedBed = null);
       setState(() => selectedRoom = null);
+      
+      // Refresh available rooms
+      await fetchAvailableRooms();
 
     } catch (e) {
+      print("❌ Error in addHostelite: $e");
+      print("❌ Error stack trace: ${StackTrace.current}");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(
+          content: Text("Error adding hostelite: $e"),
+        ),
       );
     } finally {
       setState(() => isLoading = false);
@@ -429,6 +751,11 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  // Debug button - remove this in production
+
+                  // Firestore test button
+
                 ],
               ),
             ),
@@ -465,5 +792,4 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
       ),
     );
   }
-
 }

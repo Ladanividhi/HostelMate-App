@@ -4,12 +4,25 @@ import 'package:HostelMate/hostelite/HGatepass.dart';
 import 'package:HostelMate/hostelite/HHostelites.dart';
 import 'package:HostelMate/hostelite/HProfile.dart';
 import 'package:HostelMate/hostelite/HRequests.dart';
+import 'package:HostelMate/hostelite/HScanner.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class HDashboard extends StatelessWidget {
+class HDashboard extends StatefulWidget {
+  @override
+  _HDashboardState createState() => _HDashboardState();
+}
+
+class _HDashboardState extends State<HDashboard> {
+  String? hosteliteName;
+  String? hosteliteId;
+  String? roomNumber;
+  String? bedNumber;
+  bool isLoading = true;
+
   final List<Map<String, dynamic>> dashboardItems = [
     {"icon": Icons.people_alt_outlined, "label": "Hostelites"},
     {"icon": Icons.receipt_long, "label": "Send Request"},
@@ -21,6 +34,41 @@ class HDashboard extends StatelessWidget {
     {"icon": Icons.qr_code_scanner, "label": "Scanner"},
     {"icon": Icons.feedback_outlined, "label": "Feedback"},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHosteliteData();
+  }
+
+  Future<void> _loadHosteliteData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      setState(() {
+        hosteliteName = prefs.getString('hostelite_name') ?? 'Guest';
+        hosteliteId = prefs.getString('hostelite_id') ?? 'N/A';
+        roomNumber = prefs.getString('hostelite_room') ?? 'N/A';
+        bedNumber = prefs.getString('hostelite_bed') ?? 'N/A';
+        isLoading = false;
+      });
+      
+      print("✅ Hostelite data loaded from shared preferences:");
+      print("   - Name: $hosteliteName");
+      print("   - Hostel ID: $hosteliteId");
+      print("   - Room: $roomNumber");
+      print("   - Bed: $bedNumber");
+    } catch (e) {
+      print("❌ Error loading hostelite data: $e");
+      setState(() {
+        hosteliteName = 'Guest';
+        hosteliteId = 'N/A';
+        roomNumber = 'N/A';
+        bedNumber = 'N/A';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +112,7 @@ class HDashboard extends StatelessWidget {
                         ),
                         SizedBox(height: 12),
                         Text(
-                          "Ladani Vidhi Avanish",
+                          hosteliteName ?? 'Guest',
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
@@ -73,7 +121,7 @@ class HDashboard extends StatelessWidget {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          "Hostel ID: H123 | Room: 302 | Bed: B",
+                          "Hostel ID: $hosteliteId | Room: $roomNumber | Bed: $bedNumber",
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: Colors.white.withOpacity(0.9),
@@ -144,6 +192,13 @@ class HDashboard extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => HComplaintPage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'Scanner')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HScannerPage()),
                             );
                           }
                         },
