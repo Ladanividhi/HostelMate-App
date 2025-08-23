@@ -12,6 +12,140 @@ class AScannerPage extends StatefulWidget {
 
 class _AScannerPageState extends State<AScannerPage> {
   String scannedData = "No code scanned yet";
+  MobileScannerController controller = MobileScannerController();
+  bool isProcessing = false;
+
+  void showSuccessPopup(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.green.shade600,
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Auto-close after 2 seconds
+    Future.delayed(Duration(seconds: 2), () {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
+  void showErrorPopup(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.red.shade600,
+        content: Row(
+          children: [
+            Icon(Icons.error, color: Colors.white, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Auto-close after 3 seconds
+    Future.delayed(Duration(seconds: 3), () {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
+  Future<void> processQRCode(String hosteliteId) async {
+    if (isProcessing) return; // Prevent multiple simultaneous processing
+    
+    setState(() {
+      isProcessing = true;
+    });
+
+    try {
+      // Step 1: Check if hostelite ID exists in the Scanner table
+      final scannerQuery = await FirebaseFirestore.instance
+          .collection('Scanner')
+          .where('HostelID', isEqualTo: hosteliteId)
+          .get();
+
+      if (scannerQuery.docs.isEmpty) {
+        // First time scanning - create new entry with exit time
+        await FirebaseFirestore.instance.collection('Scanner').add({
+          'HostelID': hosteliteId,
+          'ExitTime': Timestamp.now(),
+          'EntryTime': null,
+        });
+        showSuccessPopup("Exit recorded successfully!");
+      } else {
+        // Sort documents by ExitTime in descending order to get the latest
+        final sortedDocs = scannerQuery.docs.toList()
+          ..sort((a, b) {
+            final aExitTime = a.data()['ExitTime'] as Timestamp?;
+            final bExitTime = b.data()['ExitTime'] as Timestamp?;
+            
+            if (aExitTime == null && bExitTime == null) return 0;
+            if (aExitTime == null) return 1;
+            if (bExitTime == null) return -1;
+            
+            return bExitTime.compareTo(aExitTime); // Descending order
+          });
+
+        // Get the latest record
+        final latestRecord = sortedDocs.first;
+        final data = latestRecord.data();
+        final exitTime = data['ExitTime'];
+        final entryTime = data['EntryTime'];
+
+        if (exitTime != null && entryTime != null) {
+          // Both exit and entry times exist - create new record with exit time
+          await FirebaseFirestore.instance.collection('Scanner').add({
+            'HostelID': hosteliteId,
+            'ExitTime': Timestamp.now(),
+            'EntryTime': null,
+          });
+          showSuccessPopup("Exit recorded successfully!");
+        } else if (exitTime != null && entryTime == null) {
+          // Exit time exists but entry time is null - add entry time to existing document
+          await FirebaseFirestore.instance
+              .collection('Scanner')
+              .doc(latestRecord.id)
+              .update({'EntryTime': Timestamp.now()});
+          showSuccessPopup("Entry recorded successfully!");
+        } else {
+          // This shouldn't happen, but handle it gracefully
+          showErrorPopup("Invalid record state detected!");
+        }
+      }
+    } catch (e) {
+      debugPrint("Error processing QR scan: $e");
+      showErrorPopup("Error processing scan: ${e.toString()}");
+    } finally {
+      setState(() {
+        isProcessing = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,66 +176,26 @@ class _AScannerPageState extends State<AScannerPage> {
                 child: Stack(
                   children: [
                     MobileScanner(
-                      controller: MobileScannerController(
-                        torchEnabled: false,
-                      ),
-                        onDetect: (capture) async {
-                          final List<Barcode> barcodes = capture.barcodes;
-                          if (barcodes.isEmpty) {
-                            setState(() {
-                              scannedData = "Failed to scan QR Code.";
-                            });
-                            return;
-                          }
-
-                          final String code = barcodes.first.rawValue ?? 'Failed to scan QR Code.';
+                      controller: controller,
+                      onDetect: (capture) async {
+                        if (isProcessing) return; // Prevent multiple scans
+                        
+                        final List<Barcode> barcodes = capture.barcodes;
+                        if (barcodes.isEmpty) {
                           setState(() {
-                            scannedData = code;
+                            scannedData = "Failed to scan QR Code.";
                           });
+                          return;
+                        }
 
-                          try {
-                            // ✅ Step 1: Check if hostelId exists in Users
-                            final userSnap = await FirebaseFirestore.instance
-                                .collection('Users')
-                                .where('HostelId', isEqualTo: code)
-                                .limit(1)
-                                .get();
+                        final String code = barcodes.first.rawValue ?? 'Failed to scan QR Code.';
+                        setState(() {
+                          scannedData = code;
+                        });
 
-                            if (userSnap.docs.isEmpty) {
-                              debugPrint("❌ No user found with HostelId: $code");
-                              return;
-                            }
-
-                            // ✅ Step 2: Check Scanner table
-                            final scannerQuery = await FirebaseFirestore.instance
-                                .collection('Scanner')
-                                .where('HostelID', isEqualTo: code)
-                                .where('ExitTime', isNotEqualTo: null)
-                                .where('EntryTime', isEqualTo: null)
-                                .limit(1)
-                                .get();
-
-                            if (scannerQuery.docs.isNotEmpty) {
-                              // Update EntryTime
-                              final docId = scannerQuery.docs.first.id;
-                              await FirebaseFirestore.instance
-                                  .collection('Scanner')
-                                  .doc(docId)
-                                  .update({'EntryTime': Timestamp.now()});
-                              debugPrint("✅ EntryTime updated for $code");
-                            } else {
-                              // Create new entry with ExitTime now, EntryTime null
-                              await FirebaseFirestore.instance.collection('Scanner').add({
-                                'HostelID': code,
-                                'ExitTime': Timestamp.now(),
-                                'EntryTime': null,
-                              });
-                              debugPrint("✅ New ExitTime record created for $code");
-                            }
-                          } catch (e) {
-                            debugPrint("🔥 Error processing QR scan: $e");
-                          }
-                        },
+                        // Process the QR code
+                        await processQRCode(code);
+                      },
                     ),
 
                     // Scanning frame overlay
@@ -115,6 +209,17 @@ class _AScannerPageState extends State<AScannerPage> {
                         ),
                       ),
                     ),
+
+                    // Processing indicator
+                    if (isProcessing)
+                      Container(
+                        color: Colors.black54,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(primary_color),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -138,5 +243,11 @@ class _AScannerPageState extends State<AScannerPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 }

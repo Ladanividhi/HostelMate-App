@@ -1,9 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HGatepassPage extends StatefulWidget {
+  const HGatepassPage({Key? key}) : super(key: key);
+
   @override
   State<HGatepassPage> createState() => _HGatepassPageState();
 }
@@ -13,29 +17,27 @@ class _HGatepassPageState extends State<HGatepassPage> {
   DateTime? dateOfGoing;
   DateTime? dateOfReturn;
 
-  List<Map<String, dynamic>> previousGatepasses = [
-    {
-      "dateApplied": "2025-06-20",
-      "dateOfGoing": "2025-06-22",
-      "dateOfReturn": "2025-06-24",
-      "reason": "Family Event",
-      "status": "Pending",
-      "parentApproval": "Approved"
-    },
-    {
-      "dateApplied": "2025-06-10",
-      "dateOfGoing": "2025-06-11",
-      "dateOfReturn": "2025-06-12",
-      "reason": "Medical Checkup",
-      "status": "Approved",
-      "parentApproval": "Approved"
-    },
-  ];
+  String? hosteliteId; // fetched from SharedPreferences
+
+  List<Map<String, dynamic>> previousGatepasses = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHosteliteId();
+  }
+
+  Future<void> _loadHosteliteId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      hosteliteId = prefs.getString("hostelite_id"); // 🔑 saved at login
+    });
+  }
 
   void pickDate(BuildContext context, bool isGoing) async {
     DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(Duration(days: 1)),
+      initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime(2030),
       builder: (context, child) {
@@ -61,31 +63,61 @@ class _HGatepassPageState extends State<HGatepassPage> {
     }
   }
 
-  void generateGatepass() {
+  void generateGatepass() async {
     if (dateOfGoing == null || dateOfReturn == null || reasonController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please fill all details!")),
+        const SnackBar(content: Text("Please fill all details!")),
       );
       return;
     }
 
-    setState(() {
-      previousGatepasses.insert(0, {
-        "dateApplied": DateTime.now().toString().substring(0, 10),
-        "dateOfGoing": dateOfGoing.toString().substring(0, 10),
-        "dateOfReturn": dateOfReturn.toString().substring(0, 10),
-        "reason": reasonController.text,
-        "status": "Pending",
-        "parentApproval": "Pending"
-      });
-      reasonController.clear();
-      dateOfGoing = null;
-      dateOfReturn = null;
-    });
+    if (hosteliteId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: Hostelite ID not found!")),
+      );
+      return;
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Gatepass Generated!")),
-    );
+    try {
+      // Create a new document in Gatepass collection
+      DocumentReference gatepassRef =
+      FirebaseFirestore.instance.collection("Gatepass").doc();
+
+      await gatepassRef.set({
+        "gatepassId": gatepassRef.id, // unique id
+        "hosteliteId": hosteliteId, // taken from SharedPreferences
+        "goingDate": dateOfGoing,
+        "returnDate": dateOfReturn,
+        "reason": reasonController.text.trim(),
+        "generatedTime": DateTime.now(),
+        "parentApproval": "Pending",
+        "adminApproval": "Pending",
+      });
+
+      // Update UI
+      setState(() {
+        previousGatepasses.insert(0, {
+          "gatepassId": gatepassRef.id,
+          "dateApplied": DateTime.now().toString().substring(0, 10),
+          "dateOfGoing": dateOfGoing.toString().substring(0, 10),
+          "dateOfReturn": dateOfReturn.toString().substring(0, 10),
+          "reason": reasonController.text,
+          "status": "Pending",
+          "parentApproval": "Pending"
+        });
+        reasonController.clear();
+        dateOfGoing = null;
+        dateOfReturn = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Gatepass Generated & Sent for Approval!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   @override
@@ -96,7 +128,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFF5F5F5),
         appBar: AppBar(
           backgroundColor: primary_color,
           elevation: 0,
@@ -124,13 +156,13 @@ class _HGatepassPageState extends State<HGatepassPage> {
                       color: primary_color,
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
                   // Date Pickers & Reason Field
                   buildDateField("Date of Going", dateOfGoing, true),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   buildDateField("Date of Return", dateOfReturn, false),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
                   TextField(
                     controller: reasonController,
@@ -140,7 +172,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
                       hintStyle: GoogleFonts.poppins(fontSize: 13),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: EdgeInsets.all(14),
+                      contentPadding: const EdgeInsets.all(14),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -149,7 +181,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
                     style: GoogleFonts.poppins(fontSize: 14),
                   ),
 
-                  SizedBox(height: 26),
+                  const SizedBox(height: 26),
 
                   Text(
                     "Previous Gatepasses",
@@ -159,7 +191,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
                       color: primary_color,
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
                   ...previousGatepasses.map((gp) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -179,7 +211,8 @@ class _HGatepassPageState extends State<HGatepassPage> {
                             detailRow("Going Date", gp["dateOfGoing"]),
                             detailRow("Return Date", gp["dateOfReturn"]),
                             detailRow("Reason", gp["reason"]),
-                            detailRow("Parent Approval", gp["parentApproval"]),
+                            detailRow("Parent Approval",
+                                gp["parentApproval"]),
                             detailRow("Status", gp["status"]),
                           ],
                         ),
@@ -192,7 +225,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
             // Sticky Button
             SafeArea(
               child: Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: generateGatepass,
@@ -201,7 +234,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: Text(
                     "Generate Gatepass",
@@ -224,7 +257,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
     return GestureDetector(
       onTap: () => pickDate(context, isGoing),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -232,7 +265,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
         child: Row(
           children: [
             Icon(Icons.date_range, color: primary_color),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text(
               date != null ? date.toString().substring(0, 10) : title,
               style: GoogleFonts.poppins(
@@ -262,8 +295,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
           Expanded(
             child: Text(
               value ?? '',
-              style:
-              GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
+              style: GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
             ),
           ),
         ],
