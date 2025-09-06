@@ -51,12 +51,12 @@ class _SelectRolePageState extends State<SelectRolePage> {
                       ? null
                       : () {
                     if (selectedRole == "Admin") {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => AdminLoginPage()),
                       );
                     } else {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => HosteliteIdCheckPage()),
                       );

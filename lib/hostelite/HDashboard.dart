@@ -1,8 +1,11 @@
+import 'package:HostelMate/admin/APayment.dart';
 import 'package:HostelMate/hostelite/HComplaints.dart';
 import 'package:HostelMate/hostelite/HGatepass.dart';
 import 'package:HostelMate/hostelite/HHostelites.dart';
+import 'package:HostelMate/hostelite/HPayment.dart';
 import 'package:HostelMate/hostelite/HProfile.dart';
 import 'package:HostelMate/hostelite/HScanner.dart';
+import 'package:HostelMate/hostelite/Messages.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
@@ -30,6 +33,7 @@ class _HDashboardState extends State<HDashboard> {
     {"icon": Icons.vpn_key_outlined, "label": "Generate Gatepass"},
     {"icon": Icons.qr_code_scanner, "label": "Scanner"},
     {"icon": Icons.feedback_outlined, "label": "Feedback"},
+    {"icon": Icons.account_circle, "label": "My Profile"},
   ];
 
   @override
@@ -69,7 +73,7 @@ class _HDashboardState extends State<HDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredItems = dashboardItems.sublist(0, 9);
+    final filteredItems = dashboardItems;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -127,21 +131,6 @@ class _HDashboardState extends State<HDashboard> {
                       ],
                     ),
 
-                    // Right part: Profile icon
-                    InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => HProfilePage()),
-                        );
-                        print("Profile tapped");
-                      },
-                      child: CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 20,
-                        child: Icon(Icons.person, color: primary_color, size: 28),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -179,7 +168,17 @@ class _HDashboardState extends State<HDashboard> {
                           }
                           else if(filteredItems[index]['label'] == 'Group chat')
                           {
-
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => MessagesPage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'Payment Status')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HPaymentPage()),
+                            );
                           }
                           else if(filteredItems[index]['label'] == 'Draft Complaint')
                           {
@@ -193,6 +192,13 @@ class _HDashboardState extends State<HDashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => HScannerPage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'My Profile')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HProfilePage()),
                             );
                           }
                         },

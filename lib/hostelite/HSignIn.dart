@@ -17,6 +17,7 @@ class _HSignInPageState extends State<HSignInPage> {
   final passwordController = TextEditingController();
 
   bool _passwordVisible = false;
+  bool rememberMe = false;
 
   void showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -54,12 +55,13 @@ class _HSignInPageState extends State<HSignInPage> {
         if (userData['Password'] == password) {
           // Store hostelite ID in shared preferences
           await _storeHosteliteData(hostelId, userData);
-          
-          Navigator.pushReplacement(
+
+          Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(
-                builder: (context) => HDashboard()),
+            MaterialPageRoute(builder: (context) => HDashboard()),
+                (Route<dynamic> route) => false, // This removes all previous routes
           );
+
         } else {
           showSnack("Invalid Hostel ID or Password.");
         }
@@ -75,12 +77,14 @@ class _HSignInPageState extends State<HSignInPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Store hostelite ID and other useful data
+      // Clear admin flag and store hostelite ID and other useful data
+      await prefs.setBool('is_admin', false);
       await prefs.setString('hostelite_id', hostelId);
       await prefs.setString('hostelite_room', userData['RoomNumber']?.toString() ?? '');
       await prefs.setString('hostelite_bed', userData['BedNumber']?.toString() ?? '');
       await prefs.setString('hostelite_scanner_img', userData['ScannerImg']?.toString() ?? '');
       await prefs.setString('hostelite_name', userData['Name']?.toString() ?? '');
+      await prefs.setBool('remember_me', rememberMe); // Save remember me preference
       
       print("✅ Hostelite data stored in shared preferences:");
       print("   - Hostel ID: $hostelId");
@@ -194,7 +198,31 @@ class _HSignInPageState extends State<HSignInPage> {
                           },
                           style: GoogleFonts.poppins(),
                         ),
-                        SizedBox(height: 28),
+                        SizedBox(height: 20),
+
+                        // Remember Me Checkbox
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  rememberMe = value ?? false;
+                                });
+                              },
+                              activeColor: primary_color,
+                            ),
+                            Text(
+                              "Remember Me",
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 20),
 
                         // Login Button
                         SizedBox(

@@ -1,8 +1,11 @@
+import 'package:HostelMate/hostelite/HEditProfile.dart';
 import 'package:HostelMate/screens/Settings.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HProfilePage extends StatefulWidget {
   @override
@@ -10,28 +13,114 @@ class HProfilePage extends StatefulWidget {
 }
 
 class _HProfilePageState extends State<HProfilePage> {
-  Map<String, String> userProfile = {
-    "name": "Vidhi Ladani",
-    "hostelId": "H001",
-    "room": "302",
-    "bed": "B",
-    "college": "Dharmsinh Desai University",
-    "course": "Computer Engineering",
-    "email": "vidhi@gmail.com",
-    "phone": "9999988888",
-    "address": "Rajkot",
-    "fatherName": "Avanish Ladani",
-    "motherName": "Reshma Ladani",
-    "fatherContact": "9999911111",
-    "motherContact": "9999922222",
-    "guardianEmail": "avanish@gmail.com",
-  };
+  Map<String, String> userProfile = {};
+  String? currentHostelId;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _getHostelId();
+    await _fetchUserProfile();
+  }
+
+  Future<void> _getHostelId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hostelId = prefs.getString('hostelite_id');
+      if (hostelId != null) {
+        setState(() {
+          currentHostelId = hostelId;
+        });
+      }
+    } catch (e) {
+      print("❌ Error getting hostel ID: $e");
+    }
+  }
+
+  Future<void> _fetchUserProfile() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      if (currentHostelId == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Fetch user data from Users table
+      final userSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .where('HostelId', isEqualTo: currentHostelId)
+          .limit(1)
+          .get();
+
+      if (userSnapshot.docs.isNotEmpty) {
+        final userData = userSnapshot.docs.first.data();
+        
+        setState(() {
+          userProfile = {
+            "name": userData['Name'] ?? 'N/A',
+            "hostelId": userData['HostelId'] ?? 'N/A',
+            "room": userData['RoomNumber']?.toString() ?? 'N/A',
+            "bed": userData['BedNumber'] ?? 'N/A',
+            "college": userData['College'] ?? 'N/A',
+            "course": userData['Course'] ?? 'N/A',
+            "email": userData['Email'] ?? 'N/A',
+            "phone": userData['Phone'] ?? 'N/A',
+            "address": userData['Address'] ?? 'N/A',
+            "fatherName": userData['FatherName'] ?? 'N/A',
+            "motherName": userData['MotherName'] ?? 'N/A',
+            "fatherContact": userData['FatherContact'] ?? 'N/A',
+            "motherContact": userData['MotherContact'] ?? 'N/A',
+            "guardianEmail": userData['GuardianEmail'] ?? 'N/A',
+            "joiningDate": _formatDate(userData['JoiningDate']),
+          };
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Error fetching user profile: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  String _formatDate(dynamic date) {
+    try {
+      if (date is Timestamp) {
+        final dateTime = date.toDate();
+        return "${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}";
+      }
+      return "N/A";
+    } catch (e) {
+      return "N/A";
+    }
+  }
 
   void onMenuSelected(String value) {
     if (value == 'edit') {
-      // navigate to Edit Profile page or show dialog
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Edit Profile clicked")));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => HEditProfilePage()),
+      ).then((value) {
+        // This runs when HEditProfilePage is popped
+        _initializeData(); // call your function to reload data
+        setState(() {});    // rebuilds the page
+      });
+
     } else if (value == 'settings') {
       Navigator.push(
         context,
@@ -107,41 +196,79 @@ class _HProfilePageState extends State<HProfilePage> {
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: primary_color.withOpacity(0.2),
-                child: Text(
-                  userProfile["name"]![0],
-                  style: GoogleFonts.poppins(
-                    fontSize: 36,
-                    color: primary_color,
-                    fontWeight: FontWeight.w600,
+        body: isLoading
+            ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primary_color),
+                ),
+              )
+            : userProfile.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Profile not found",
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          "Unable to load your profile data",
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      Center(
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: primary_color.withOpacity(0.2),
+                          child: Text(
+                            userProfile["name"]?.isNotEmpty == true 
+                                ? userProfile["name"]![0].toUpperCase()
+                                : '?',
+                            style: GoogleFonts.poppins(
+                              fontSize: 36,
+                              color: primary_color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 18),
+                      Center(
+                        child: Text(
+                          userProfile["name"] ?? 'Unknown User',
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: primary_color,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 28),
+
+                      // Profile details
+                      ...userProfile.entries.map((entry) => profileRow(entry.key, entry.value)),
+
+                    ],
                   ),
-                ),
-              ),
-            ),
-            SizedBox(height: 18),
-            Center(
-              child: Text(
-                userProfile["name"]!,
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: primary_color,
-                ),
-              ),
-            ),
-            SizedBox(height: 28),
-
-            // Profile details
-            ...userProfile.entries.map((entry) => profileRow(entry.key, entry.value)),
-
-          ],
-        ),
       ),
     );
   }

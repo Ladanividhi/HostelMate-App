@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminLoginPage extends StatefulWidget {
   @override
@@ -19,6 +20,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
   bool isPasswordVisible = false;
   bool isLoading = false;
+  bool rememberMe = false;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +85,31 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   SizedBox(height: 8),
                   textInputField(secretKeyController, "Enter secret code", true),
 
-                  SizedBox(height: 32),
+                  SizedBox(height: 20),
+
+                  // Remember Me Checkbox
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: rememberMe,
+                        onChanged: (value) {
+                          setState(() {
+                            rememberMe = value ?? false;
+                          });
+                        },
+                        activeColor: primary_color,
+                      ),
+                      Text(
+                        "Remember Me",
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
 
                   // Login Button
                   SizedBox(
@@ -133,11 +159,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     final password = passwordController.text.trim();
     final secretKey = secretKeyController.text.trim();
 
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => ADashboard()),
-    );
     if (username.isEmpty || password.isEmpty || secretKey.isEmpty) {
       showError("Please fill in all fields.");
       return;
@@ -182,6 +203,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       }
 
       // 🎉 SUCCESS
+      // Set admin flag in SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_admin', true);
+      await prefs.remove('hostelite_id'); // Clear any existing hostelite_id
+      await prefs.setBool('remember_me', rememberMe); // Save remember me preference
+      
       showSuccess("Welcome Admin!");
       Navigator.pushReplacement(
         context,

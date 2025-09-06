@@ -2,8 +2,10 @@ import 'package:HostelMate/admin/AAddHostelite.dart';
 import 'package:HostelMate/admin/AComplaints.dart';
 import 'package:HostelMate/admin/AGatepass.dart';
 import 'package:HostelMate/admin/AHostelites.dart';
+import 'package:HostelMate/admin/APayment.dart';
 import 'package:HostelMate/admin/AScanner.dart';
 import 'package:HostelMate/admin/AVacancy.dart';
+import 'package:HostelMate/hostelite/Messages.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -92,6 +94,20 @@ class _ADashboardState extends State<ADashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => AScannerPage()),
+                            );
+                          }
+                          else if(dashboardItems[index]['label'] == 'Payment')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => APaymentPage()),
+                            );
+                          }
+                          else if(dashboardItems[index]['label'] == 'Group chat')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => MessagesPage()),
                             );
                           }
                           else if(dashboardItems[index]['label'] == 'Gatepass')
