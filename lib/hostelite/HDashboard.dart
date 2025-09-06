@@ -1,9 +1,7 @@
-import 'package:HostelMate/admin/AGatepass.dart';
 import 'package:HostelMate/hostelite/HComplaints.dart';
 import 'package:HostelMate/hostelite/HGatepass.dart';
 import 'package:HostelMate/hostelite/HHostelites.dart';
 import 'package:HostelMate/hostelite/HProfile.dart';
-import 'package:HostelMate/hostelite/HRequests.dart';
 import 'package:HostelMate/hostelite/HScanner.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,9 +23,8 @@ class _HDashboardState extends State<HDashboard> {
 
   final List<Map<String, dynamic>> dashboardItems = [
     {"icon": Icons.people_alt_outlined, "label": "Hostelites"},
-    {"icon": Icons.receipt_long, "label": "Send Request"},
     {"icon": Icons.report_problem_outlined, "label": "Draft Complaint"},
-    {"icon": Icons.message_outlined, "label": "Send Message"},
+    {"icon": Icons.message_outlined, "label": "Group chat"},
     {"icon": Icons.woman, "label": "View Vacancies"},
     {"icon": Icons.currency_rupee, "label": "Payment Status"},
     {"icon": Icons.vpn_key_outlined, "label": "Generate Gatepass"},
@@ -180,12 +177,9 @@ class _HDashboardState extends State<HDashboard> {
                               MaterialPageRoute(builder: (context) => HGatepassPage()),
                             );
                           }
-                          else if(filteredItems[index]['label'] == 'Send Request')
+                          else if(filteredItems[index]['label'] == 'Group chat')
                           {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => HRequestPage()),
-                            );
+
                           }
                           else if(filteredItems[index]['label'] == 'Draft Complaint')
                           {

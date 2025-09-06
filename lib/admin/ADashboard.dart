@@ -2,7 +2,6 @@ import 'package:HostelMate/admin/AAddHostelite.dart';
 import 'package:HostelMate/admin/AComplaints.dart';
 import 'package:HostelMate/admin/AGatepass.dart';
 import 'package:HostelMate/admin/AHostelites.dart';
-import 'package:HostelMate/admin/ARequests.dart';
 import 'package:HostelMate/admin/AScanner.dart';
 import 'package:HostelMate/admin/AVacancy.dart';
 import 'package:flutter/material.dart';
@@ -19,9 +18,8 @@ class ADashboard extends StatefulWidget {
 class _ADashboardState extends State<ADashboard> {
   final List<Map<String, dynamic>> dashboardItems = [
     {"icon": Icons.people_alt_outlined, "label": "Hostelites"},
-    {"icon": Icons.receipt_long, "label": "Requests"},
     {"icon": Icons.report_problem_outlined, "label": "Complaints"},
-    {"icon": Icons.message_outlined, "label": "Messages"},
+    {"icon": Icons.message_outlined, "label": "Group chat"},
     {"icon": Icons.woman, "label": "Vacancy"},
     {"icon": Icons.currency_rupee, "label": "Payment"},
     {"icon": Icons.vpn_key_outlined, "label": "Gatepass"},
@@ -87,13 +85,6 @@ class _ADashboardState extends State<ADashboard> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => AHostelitePage()),
-                              );
-                            }
-                          else if(dashboardItems[index]['label'] == 'Requests')
-                            {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => ARequestsPage()),
                               );
                             }
                           else if(dashboardItems[index]['label'] == 'Scanner')
