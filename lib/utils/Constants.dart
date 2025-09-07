@@ -1,0 +1,7 @@
+import 'package:flutter/material.dart';
+
+var bg_color =  Colors.grey[100];
+// const primary_color = Colors.black45;
+const primary_color = Color(0xFF1B3068);
+const text_color = Colors.black54;
+const head_color = Colors.black54;
