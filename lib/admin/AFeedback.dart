@@ -4,6 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:HostelMate/utils/Constants.dart';
+<<<<<<< HEAD
+=======
+import 'package:fl_chart/fl_chart.dart';
+
+>>>>>>> f0de9dbd8eca14ee07bbd2e0b9dcb879ffa2c0eb
 
 class AFeedbackPage extends StatefulWidget {
   @override
@@ -217,4 +222,8 @@ class _AFeedbackPageState extends State<AFeedbackPage> {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> f0de9dbd8eca14ee07bbd2e0b9dcb879ffa2c0eb

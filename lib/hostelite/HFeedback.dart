@@ -221,4 +221,8 @@ class _HFeedbackPageState extends State<HFeedbackPage> {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> f0de9dbd8eca14ee07bbd2e0b9dcb879ffa2c0eb
