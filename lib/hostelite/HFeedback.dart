@@ -17,7 +17,9 @@ class _HFeedbackPageState extends State<HFeedbackPage> {
   bool isSubmitting = false;
 
   Future<void> _submitFeedback() async {
-    if (selectedMeal == null || feedbackController.text.trim().isEmpty) {
+    if (selectedMeal == null || feedbackController.text
+        .trim()
+        .isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Please select a meal and enter feedback")),
       );
@@ -31,7 +33,8 @@ class _HFeedbackPageState extends State<HFeedbackPage> {
       final feedbackRef = FirebaseFirestore.instance.collection("Feedback");
 
       // Step 1: Check if today's doc exists
-      final existing = await feedbackRef.where("Date", isEqualTo: today).limit(1).get();
+      final existing = await feedbackRef.where("Date", isEqualTo: today).limit(
+          1).get();
 
       if (existing.docs.isNotEmpty) {
         final doc = existing.docs.first;
@@ -40,21 +43,24 @@ class _HFeedbackPageState extends State<HFeedbackPage> {
         // Prevent duplicate submission
         if (selectedMeal == "Breakfast" && data["Breakfast"] != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("You already submitted Breakfast feedback today")),
+            SnackBar(content: Text(
+                "You already submitted Breakfast feedback today")),
           );
           setState(() => isSubmitting = false);
           return;
         }
         if (selectedMeal == "Lunch" && data["Lunch"] != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("You already submitted Lunch feedback today")),
+            SnackBar(
+                content: Text("You already submitted Lunch feedback today")),
           );
           setState(() => isSubmitting = false);
           return;
         }
         if (selectedMeal == "Dinner" && data["Dinner"] != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("You already submitted Dinner feedback today")),
+            SnackBar(
+                content: Text("You already submitted Dinner feedback today")),
           );
           setState(() => isSubmitting = false);
           return;
@@ -70,11 +76,15 @@ class _HFeedbackPageState extends State<HFeedbackPage> {
         await feedbackRef.add({
           "Date": today,
           "Breakfast": selectedMeal == "Breakfast" ? rating.round() : null,
-          "BMsg": selectedMeal == "Breakfast" ? feedbackController.text.trim() : "",
+          "BMsg": selectedMeal == "Breakfast"
+              ? feedbackController.text.trim()
+              : "",
           "Lunch": selectedMeal == "Lunch" ? rating.round() : null,
           "LMsg": selectedMeal == "Lunch" ? feedbackController.text.trim() : "",
           "Dinner": selectedMeal == "Dinner" ? rating.round() : null,
-          "DMsg": selectedMeal == "Dinner" ? feedbackController.text.trim() : "",
+          "DMsg": selectedMeal == "Dinner"
+              ? feedbackController.text.trim()
+              : "",
         });
       }
 
@@ -221,8 +231,4 @@ class _HFeedbackPageState extends State<HFeedbackPage> {
       ),
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> f0de9dbd8eca14ee07bbd2e0b9dcb879ffa2c0eb
