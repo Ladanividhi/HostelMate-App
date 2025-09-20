@@ -1,5 +1,6 @@
 import 'package:HostelMate/admin/AAddHostelite.dart';
 import 'package:HostelMate/admin/AComplaints.dart';
+import 'package:HostelMate/admin/AFeedback.dart';
 import 'package:HostelMate/admin/AGatepass.dart';
 import 'package:HostelMate/admin/AHostelites.dart';
 import 'package:HostelMate/admin/APayment.dart';
@@ -136,6 +137,13 @@ class _ADashboardState extends State<ADashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => AddHostelitePage()),
+                            );
+                          }
+                          else if(dashboardItems[index]['label'] == 'Feedback')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => AFeedbackPage()),
                             );
                           }
                         },

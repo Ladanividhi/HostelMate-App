@@ -1,5 +1,6 @@
 import 'package:HostelMate/admin/APayment.dart';
 import 'package:HostelMate/hostelite/HComplaints.dart';
+import 'package:HostelMate/hostelite/HFeedback.dart';
 import 'package:HostelMate/hostelite/HGatepass.dart';
 import 'package:HostelMate/hostelite/HHostelites.dart';
 import 'package:HostelMate/hostelite/HPayment.dart';
@@ -199,6 +200,13 @@ class _HDashboardState extends State<HDashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => HProfilePage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'Feedback')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => HFeedbackPage()),
                             );
                           }
                         },

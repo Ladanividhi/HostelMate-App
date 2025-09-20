@@ -424,3 +424,4 @@ class _HelpPageState extends State<HelpPage> {
     );
   }
 }
+

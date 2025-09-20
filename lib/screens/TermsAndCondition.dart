@@ -217,3 +217,4 @@ class _TermsAndConditionPageState extends State<TermsAndConditionPage> {
     );
   }
 }
+
