@@ -43,10 +43,9 @@ dependencies:
   firebase_storage: ^12.4.10
   intl: ^0.19.0
   fl_chart: ^0.64.0
-<<<<<<< HEAD
-=======
+
   google_fonts: ^6.1.0
->>>>>>> f0de9dbd8eca14ee07bbd2e0b9dcb879ffa2c0eb
+#>>>>>>> f0de9dbd8eca14ee07bbd2e0b9dcb879ffa2c0eb
 
 dev_dependencies:
   flutter_test:
