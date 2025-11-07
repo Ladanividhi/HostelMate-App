@@ -14,6 +14,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:HostelMate/hostelite/HFeedback.dart';
 
+import '../admin/AVacancy.dart';
+
 
 class HDashboard extends StatefulWidget {
   @override
@@ -209,6 +211,13 @@ class _HDashboardState extends State<HDashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => HFeedbackPage()),
+                            );
+                          }
+                          else if(filteredItems[index]['label'] == 'View Vacancies')
+                          {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => AVacancyPage()),
                             );
                           }
                         },

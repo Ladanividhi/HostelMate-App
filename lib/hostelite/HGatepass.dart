@@ -4,6 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HGatepassPage extends StatefulWidget {
   const HGatepassPage({Key? key}) : super(key: key);
@@ -17,9 +21,14 @@ class _HGatepassPageState extends State<HGatepassPage> {
   DateTime? dateOfGoing;
   DateTime? dateOfReturn;
 
-  String? hosteliteId; // fetched from SharedPreferences
-
+  String? hosteliteId;
   List<Map<String, dynamic>> previousGatepasses = [];
+
+  // ✅ Values read from environment:
+  late final String emailSender = dotenv.env["SMTP_EMAIL"] ?? "";
+  late final String emailPassword = dotenv.env["SMTP_PASSWORD"] ?? "";
+  final String approvalServerBaseUrl =
+      'https://hostelmate-backend-1.onrender.com';
 
   @override
   void initState() {
@@ -30,10 +39,13 @@ class _HGatepassPageState extends State<HGatepassPage> {
   Future<void> _loadHosteliteId() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      hosteliteId = prefs.getString("hostelite_id"); // 🔑 saved at login
+      hosteliteId = prefs.getString("hostelite_id");
     });
   }
 
+  /// ------------------------------------------------------------
+  /// ✅ Date Picker
+  /// ------------------------------------------------------------
   void pickDate(BuildContext context, bool isGoing) async {
     DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -43,9 +55,7 @@ class _HGatepassPageState extends State<HGatepassPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: primary_color,
-            ),
+            colorScheme: ColorScheme.light(primary: primary_color),
           ),
           child: child!,
         );
@@ -63,8 +73,13 @@ class _HGatepassPageState extends State<HGatepassPage> {
     }
   }
 
+  /// ------------------------------------------------------------
+  /// ✅ Main Gatepass Generator
+  /// ------------------------------------------------------------
   void generateGatepass() async {
-    if (dateOfGoing == null || dateOfReturn == null || reasonController.text.isEmpty) {
+    if (dateOfGoing == null ||
+        dateOfReturn == null ||
+        reasonController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all details!")),
       );
@@ -79,13 +94,37 @@ class _HGatepassPageState extends State<HGatepassPage> {
     }
 
     try {
-      // Create a new document in Gatepass collection
-      DocumentReference gatepassRef =
+      /// ✅ Fetch guardian email using hosteliteId field
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .where("HostelId", isEqualTo: hosteliteId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Guardian email not found!")),
+        );
+        return;
+      }
+
+      final userDoc = querySnapshot.docs.first.data();
+      final guardianEmail = userDoc['GuardianEmail'];
+
+      if (guardianEmail == null || guardianEmail.toString().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Guardian email missing.")),
+        );
+        return;
+      }
+
+      /// ✅ Create Firestore Gatepass record
+      final gatepassRef =
       FirebaseFirestore.instance.collection("Gatepass").doc();
 
       await gatepassRef.set({
-        "gatepassId": gatepassRef.id, // unique id
-        "hosteliteId": hosteliteId, // taken from SharedPreferences
+        "gatepassId": gatepassRef.id,
+        "hosteliteId": hosteliteId,
         "goingDate": dateOfGoing,
         "returnDate": dateOfReturn,
         "reason": reasonController.text.trim(),
@@ -94,7 +133,43 @@ class _HGatepassPageState extends State<HGatepassPage> {
         "adminApproval": "Pending",
       });
 
-      // Update UI
+      /// ------------------------------------------------------------
+      /// ✅ Send Email to Guardian
+      /// ------------------------------------------------------------
+      final smtpServer = gmail(emailSender, emailPassword);
+
+      final message = Message()
+        ..from = Address(emailSender, "HostelMate System")
+        ..recipients.add(guardianEmail)
+        ..subject = "Gatepass Request for Approval"
+        ..html = '''
+    <p>Dear Guardian,</p>
+    <p>A new gatepass request has been generated:</p>
+    <p>
+      <b>Reason:</b> ${reasonController.text}<br>
+      <b>Date of Going:</b> ${dateOfGoing.toString().substring(0, 10)}<br>
+      <b>Date of Return:</b> ${dateOfReturn.toString().substring(0, 10)}
+    </p>
+    <p>Please approve or reject:</p>
+    <p>
+      <a href="$approvalServerBaseUrl/approve?gatepassId=${gatepassRef.id}"
+         style="padding:10px 20px;background:#4CAF50;color:white;
+                text-decoration:none;border-radius:8px;">Approve</a>
+      &nbsp;
+      <a href="$approvalServerBaseUrl/decline?gatepassId=${gatepassRef.id}"
+         style="padding:10px 20px;background:#F44336;color:white;
+                text-decoration:none;border-radius:8px;">Decline</a>
+    </p>
+    <p>Thank you,<br>HostelMate</p>
+    ''';
+
+      try {
+        await send(message, smtpServer);
+      } catch (e) {
+        print("❌ Email send error: $e");
+      }
+
+      /// ✅ Update UI
       setState(() {
         previousGatepasses.insert(0, {
           "gatepassId": gatepassRef.id,
@@ -103,30 +178,34 @@ class _HGatepassPageState extends State<HGatepassPage> {
           "dateOfReturn": dateOfReturn.toString().substring(0, 10),
           "reason": reasonController.text,
           "status": "Pending",
-          "parentApproval": "Pending"
+          "parentApproval": "Pending",
         });
+
         reasonController.clear();
         dateOfGoing = null;
         dateOfReturn = null;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Gatepass Generated & Sent for Approval!")),
+        const SnackBar(content: Text("Gatepass Generated & Email Sent!")),
       );
     } catch (e) {
+      print("❌ Error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
     }
   }
 
+  /// ------------------------------------------------------------
+  /// ✅ UI Widgets
+  /// ------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: primary_color,
+      value: const SystemUiOverlayStyle(
         statusBarIconBrightness: Brightness.light,
-      ),
+      ).copyWith(statusBarColor: primary_color),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F5F5),
         appBar: AppBar(
@@ -151,25 +230,20 @@ class _HGatepassPageState extends State<HGatepassPage> {
                   Text(
                     "Request New Gatepass",
                     style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: primary_color,
-                    ),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: primary_color),
                   ),
                   const SizedBox(height: 16),
-
-                  // Date Pickers & Reason Field
                   buildDateField("Date of Going", dateOfGoing, true),
                   const SizedBox(height: 12),
                   buildDateField("Date of Return", dateOfReturn, false),
                   const SizedBox(height: 12),
-
                   TextField(
                     controller: reasonController,
                     maxLines: 3,
                     decoration: InputDecoration(
                       hintText: "Reason",
-                      hintStyle: GoogleFonts.poppins(fontSize: 13),
                       filled: true,
                       fillColor: Colors.white,
                       contentPadding: const EdgeInsets.all(14),
@@ -178,11 +252,8 @@ class _HGatepassPageState extends State<HGatepassPage> {
                         borderSide: BorderSide.none,
                       ),
                     ),
-                    style: GoogleFonts.poppins(fontSize: 14),
                   ),
-
                   const SizedBox(height: 26),
-
                   Text(
                     "Previous Gatepasses",
                     style: GoogleFonts.poppins(
@@ -192,67 +263,47 @@ class _HGatepassPageState extends State<HGatepassPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  ...previousGatepasses.map((gp) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Card(
-                      color: bg_color,
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            detailRow("Date Applied", gp["dateApplied"]),
-                            detailRow("Going Date", gp["dateOfGoing"]),
-                            detailRow("Return Date", gp["dateOfReturn"]),
-                            detailRow("Reason", gp["reason"]),
-                            detailRow("Parent Approval",
-                                gp["parentApproval"]),
-                            detailRow("Status", gp["status"]),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )),
+                  ...previousGatepasses.map((gp) => gatepassTile(gp)),
                 ],
               ),
             ),
-            // Sticky Button
             SafeArea(
               child: Container(
-                padding: const EdgeInsets.all(16),
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: generateGatepass,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary_color,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: generateGatepass,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary_color,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text(
-                    "Generate Gatepass",
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                    child: Text(
+                      "Generate Gatepass",
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
               ),
-            )
+            ),
+
           ],
         ),
       ),
     );
   }
 
+  /// ------------------------------------------------------------
+  /// ✅ Individual Widgets
+  /// ------------------------------------------------------------
   Widget buildDateField(String title, DateTime? date, bool isGoing) {
     return GestureDetector(
       onTap: () => pickDate(context, isGoing),
@@ -279,6 +330,31 @@ class _HGatepassPageState extends State<HGatepassPage> {
     );
   }
 
+  Widget gatepassTile(Map<String, dynamic> gp) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Card(
+        elevation: 3,
+        color: bg_color,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              detailRow("Date Applied", gp["dateApplied"]),
+              detailRow("Going Date", gp["dateOfGoing"]),
+              detailRow("Return Date", gp["dateOfReturn"]),
+              detailRow("Reason", gp["reason"]),
+              detailRow("Parent Approval", gp["parentApproval"]),
+              detailRow("Status", gp["status"]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget detailRow(String title, String? value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -289,13 +365,13 @@ class _HGatepassPageState extends State<HGatepassPage> {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w600,
               fontSize: 13.5,
-              color: Colors.black87,
             ),
           ),
           Expanded(
             child: Text(
               value ?? '',
-              style: GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
+              style:
+              GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
             ),
           ),
         ],

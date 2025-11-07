@@ -17,9 +17,7 @@ class _HFeedbackPageState extends State<HFeedbackPage> {
   bool isSubmitting = false;
 
   Future<void> _submitFeedback() async {
-    if (selectedMeal == null || feedbackController.text
-        .trim()
-        .isEmpty) {
+    if (selectedMeal == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Please select a meal and enter feedback")),
       );

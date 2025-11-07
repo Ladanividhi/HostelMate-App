@@ -342,7 +342,26 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
         print("⚠️ Simple QR method failed: $e");
       }
 
-      // Method 5: Create local QR code without Firebase Storage
+      // Method 5: Check if QR code already exists in Firebase Storage
+      try {
+        print("🔍 Checking if QR code already exists in Firebase Storage for: $hostelId");
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('qr_codes')
+            .child('$hostelId.png');
+        
+        try {
+          final existingUrl = await ref.getDownloadURL();
+          print("✅ QR code already exists in Firebase Storage: $existingUrl");
+          return existingUrl;
+        } catch (e) {
+          print("⚠️ QR code not found in Firebase Storage, will try to upload again");
+        }
+      } catch (e) {
+        print("⚠️ Error checking Firebase Storage: $e");
+      }
+
+      // Method 6: Create local QR code without Firebase Storage (last resort)
       try {
         print("🔍 Creating local QR code for hostel ID: $hostelId");
         
@@ -360,7 +379,30 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
           final bytes = picData.buffer.asUint8List();
           print("📊 Local QR bytes: ${bytes.length}");
 
-          // Save to app documents directory (persistent)
+          // Try one more time to upload to Firebase Storage
+          try {
+            final tempDir = await getTemporaryDirectory();
+            final tempFile = File('${tempDir.path}/$hostelId.png');
+            await tempFile.writeAsBytes(bytes);
+
+            final auth = FirebaseAuth.instance;
+            if (auth.currentUser != null) {
+              final ref = FirebaseStorage.instance
+                  .ref()
+                  .child('qr_codes')
+                  .child('$hostelId.png');
+
+              final uploadTask = ref.putFile(tempFile);
+              await uploadTask;
+              final url = await ref.getDownloadURL();
+              print("✅ Successfully uploaded to Firebase Storage: $url");
+              return url;
+            }
+          } catch (uploadError) {
+            print("⚠️ Final upload attempt failed: $uploadError");
+          }
+
+          // Save to app documents directory (persistent) as last resort
           final appDir = await getApplicationDocumentsDirectory();
           final qrDir = Directory('${appDir.path}/qr_codes');
           if (!await qrDir.exists()) {
@@ -371,6 +413,7 @@ class _AddHostelitePageState extends State<AddHostelitePage> {
           await file.writeAsBytes(bytes);
           
           print("✅ Local QR saved: ${file.path}");
+          print("⚠️ Warning: Using local file path. Firebase Storage URL preferred.");
           // Return a data URL or file path that can be used
           return "file://${file.path}";
         }

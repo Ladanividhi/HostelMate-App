@@ -145,6 +145,9 @@ class _AFeedbackPageState extends State<AFeedbackPage> {
       backgroundColor: Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: primary_color,
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
         title: Text("Feedback Analysis",
             style: GoogleFonts.poppins(
                 fontSize: 20,

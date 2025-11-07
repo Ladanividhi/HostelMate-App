@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:HostelMate/utils/Constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HScannerPage extends StatefulWidget {
   const HScannerPage({Key? key}) : super(key: key);
@@ -39,61 +40,19 @@ class _HScannerPageState extends State<HScannerPage> {
     try {
       print("🔍 Starting to fetch scanner image...");
       
-      // Method 1: Try to get hostelite data from shared preferences
+      // Get hostelite ID from shared preferences
       final prefs = await SharedPreferences.getInstance();
       final storedHostelId = prefs.getString('hostelite_id');
-      final storedScannerImg = prefs.getString('hostelite_scanner_img');
-      final storedRoom = prefs.getString('hostelite_room');
-      final storedBed = prefs.getString('hostelite_bed');
       
       if (storedHostelId != null && storedHostelId.isNotEmpty) {
-        print("✅ Found hostelite data in shared preferences:");
-        print("   - Hostel ID: $storedHostelId");
-        print("   - Scanner Image: $storedScannerImg");
-        print("   - Room: $storedRoom");
-        print("   - Bed: $storedBed");
-        
-        setState(() {
-          hostelId = storedHostelId;
-          scannerImgUrl = storedScannerImg;
-          roomNumber = storedRoom;
-          bedNumber = storedBed;
-          isLoading = false;
-        });
+        print("✅ Found hostelite ID in shared preferences: $storedHostelId");
+        // Fetch fresh data from Firestore using the hostelite ID
+        await _fetchByHostelId(storedHostelId);
         return;
       }
 
-      // Method 2: Try to get from current user document (if user is signed in with their HostelId)
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        print("👤 Current user UID: ${currentUser.uid}");
-        
-        // Try to find user document by UID first
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('Users')
-              .doc(currentUser.uid)
-              .get();
-
-          if (userDoc.exists) {
-            final data = userDoc.data()!;
-            setState(() {
-              scannerImgUrl = data['ScannerImg'];
-              hostelId = data['HostelId'];
-              roomNumber = data['RoomNumber'];
-              bedNumber = data['BedNumber'];
-              isLoading = false;
-            });
-            print("✅ Found user document by UID");
-            return;
-          }
-        } catch (e) {
-          print("⚠️ Could not find user by UID: $e");
-        }
-      }
-
-      // Method 3: If no data found, ask user to enter their HostelId
-      print("⚠️ No hostelite data found, asking user to enter Hostel ID");
+      // If no hostelite ID found, ask user to enter their HostelId
+      print("⚠️ No hostelite ID found in shared preferences, asking user to enter Hostel ID");
       setState(() {
         isLoading = false;
         isError = true;
@@ -132,15 +91,23 @@ class _HScannerPageState extends State<HScannerPage> {
       final data = querySnapshot.docs.first.data();
       print("✅ Found hostelite data: $data");
       
+      final scannerImg = data['ScannerImg']?.toString();
+      print("📸 Scanner Image URL: $scannerImg");
+      
+      if (scannerImg == null || scannerImg.isEmpty || scannerImg == 'null') {
+        throw Exception("Scanner image not found for this hostelite");
+      }
+      
       // Store the data in shared preferences for future use
       await _storeHosteliteData(hostelId, data);
       
       setState(() {
-        scannerImgUrl = data['ScannerImg'];
-        hostelId = data['HostelId'];
-        roomNumber = data['RoomNumber'];
-        bedNumber = data['BedNumber'];
+        this.hostelId = data['HostelId']?.toString();
+        scannerImgUrl = scannerImg;
+        roomNumber = data['RoomNumber']?.toString();
+        bedNumber = data['BedNumber']?.toString();
         isLoading = false;
+        isError = false;
       });
     } catch (e) {
       print("❌ Error fetching by Hostel ID: $e");
@@ -148,6 +115,7 @@ class _HScannerPageState extends State<HScannerPage> {
         isLoading = false;
         isError = true;
         errorMessage = "Error: $e";
+        scannerImgUrl = null;
       });
     }
   }
@@ -441,23 +409,7 @@ class _HScannerPageState extends State<HScannerPage> {
                                               width: 2,
                                             ),
                                           ),
-                                          child: scannerImgUrl!.startsWith('file://')
-                                              ? Image.file(
-                                                  File(scannerImgUrl!.substring(7)),
-                                                  width: 250,
-                                                  height: 250,
-                                                  fit: BoxFit.contain,
-                                                  errorBuilder: (context, error, stackTrace) =>
-                                                      _buildErrorWidget(),
-                                                )
-                                              : Image.network(
-                                                  scannerImgUrl!,
-                                                  width: 250,
-                                                  height: 250,
-                                                  fit: BoxFit.contain,
-                                                  errorBuilder: (context, error, stackTrace) =>
-                                                      _buildErrorWidget(),
-                                                ),
+                                          child: _buildScannerImage(scannerImgUrl!),
                                         ),
                                       ),
                                     ),
@@ -470,6 +422,222 @@ class _HScannerPageState extends State<HScannerPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildScannerImage(String imageUrl) {
+    // Check if it's a file:// URL
+    if (imageUrl.startsWith('file://')) {
+      // Remove 'file://' prefix - handle both file:// and file:///
+      String filePath = imageUrl.replaceFirst('file://', '');
+      // Remove leading slash if present (file:///path/to/file)
+      if (!filePath.startsWith('/')) {
+        filePath = '/$filePath';
+      }
+      
+      print("📁 Loading local file: $filePath");
+      final file = File(filePath);
+      
+      // Check if file exists, if not, try Firebase Storage
+      return FutureBuilder<bool>(
+        future: file.exists(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(color: primary_color),
+            );
+          }
+          
+          if (snapshot.hasData && snapshot.data == true) {
+            return Image.file(
+              file,
+              width: 250,
+              height: 250,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                print("❌ Error loading file image: $error");
+                print("❌ File path: $filePath");
+                // If local file fails, try Firebase Storage
+                return _tryFirebaseStorage();
+              },
+            );
+          } else {
+            print("❌ File does not exist: $filePath");
+            // Try Firebase Storage as fallback
+            return _tryFirebaseStorage();
+          }
+        },
+      );
+    } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      // It's a network URL
+      print("🌐 Loading network image: $imageUrl");
+      return Image.network(
+        imageUrl,
+        width: 250,
+        height: 250,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            return child;
+          }
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+              color: primary_color,
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          print("❌ Error loading network image: $error");
+          print("❌ Image URL: $imageUrl");
+          // Try Firebase Storage as fallback
+          return _tryFirebaseStorage();
+        },
+      );
+    } else {
+      // Unknown format, try Firebase Storage
+      print("⚠️ Unknown image URL format: $imageUrl");
+      return _tryFirebaseStorage();
+    }
+  }
+
+  Widget _tryFirebaseStorage() {
+    // Try to load from Firebase Storage using HostelId
+    if (hostelId == null || hostelId!.isEmpty) {
+      return _buildErrorWidget();
+    }
+
+    print("☁️ Attempting to load from Firebase Storage for Hostel ID: $hostelId");
+    
+    // Ensure Firebase Auth is signed in
+    return FutureBuilder<void>(
+      future: _ensureFirebaseAuth(),
+      builder: (context, authSnapshot) {
+        if (authSnapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(color: primary_color),
+          );
+        }
+
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('qr_codes')
+            .child('$hostelId.png');
+
+        return FutureBuilder<String>(
+          future: ref.getDownloadURL(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(color: primary_color),
+              );
+            }
+
+            if (snapshot.hasError) {
+              print("❌ Error getting Firebase Storage URL: ${snapshot.error}");
+              
+              // Check if it's a 404 error (file doesn't exist)
+              final error = snapshot.error.toString();
+              if (error.contains('object-not-found') || error.contains('404') || error.contains('Not Found')) {
+                return _buildMissingFileWidget();
+              }
+              
+              return _buildErrorWidget();
+            }
+
+            if (snapshot.hasData && snapshot.data != null) {
+              final firebaseUrl = snapshot.data!;
+              print("✅ Found Firebase Storage URL: $firebaseUrl");
+              
+              // Update the scannerImgUrl in state and shared preferences
+              setState(() {
+                scannerImgUrl = firebaseUrl;
+              });
+              
+              // Update Firestore with Firebase URL
+              _updateFirestoreWithFirebaseUrl(firebaseUrl);
+              
+              // Update shared preferences with Firebase URL
+              _updateScannerUrlInPrefs(firebaseUrl);
+              
+              return Image.network(
+                firebaseUrl,
+                width: 250,
+                height: 250,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                      color: primary_color,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  print("❌ Error loading Firebase Storage image: $error");
+                  return _buildErrorWidget();
+                },
+              );
+            }
+
+            return _buildErrorWidget();
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _ensureFirebaseAuth() async {
+    final auth = FirebaseAuth.instance;
+    if (auth.currentUser == null) {
+      try {
+        await auth.signInAnonymously();
+        print("✅ Firebase Auth: Signed in anonymously for Storage access");
+      } catch (e) {
+        print("❌ Firebase Auth error: $e");
+      }
+    } else {
+      print("✅ Firebase Auth: Already signed in as ${auth.currentUser?.uid}");
+    }
+  }
+
+  Future<void> _updateFirestoreWithFirebaseUrl(String url) async {
+    try {
+      if (hostelId == null || hostelId!.isEmpty) return;
+      
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .where('HostelId', isEqualTo: hostelId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        await querySnapshot.docs.first.reference.update({
+          'ScannerImg': url,
+        });
+        print("✅ Updated Firestore with Firebase Storage URL");
+      }
+    } catch (e) {
+      print("❌ Error updating Firestore with Firebase URL: $e");
+    }
+  }
+
+  Future<void> _updateScannerUrlInPrefs(String url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('hostelite_scanner_img', url);
+      print("✅ Updated scanner URL in shared preferences");
+    } catch (e) {
+      print("❌ Error updating scanner URL in preferences: $e");
+    }
   }
 
   Widget _buildErrorWidget() {
@@ -487,6 +655,40 @@ class _HScannerPageState extends State<HScannerPage> {
           style: GoogleFonts.poppins(
             fontSize: 14,
             color: Colors.grey,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMissingFileWidget() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.qr_code_2_outlined,
+          size: 64,
+          color: Colors.grey.shade400,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "Scanner image not found",
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            "The QR code image is missing. Please contact the admin to regenerate your scanner.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
           ),
         ),
       ],
