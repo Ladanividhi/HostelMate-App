@@ -80,7 +80,7 @@ Managing hostels manually often leads to:
 ### Steps
 1. *Clone the Repository*
    bash
-   git clone https://github.com/yourusername/HostelMate.git
+   git clone https://github.com/Ladanividhi/HostelMate-App.git
    cd HostelMate
 
 
